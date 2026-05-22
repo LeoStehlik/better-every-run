@@ -2,8 +2,9 @@
 name: ber
 description: "Better Every Run: turn user corrections into preferred future outcomes through a simple /ber-style fix, remember, and report flow."
 user-invocable: true
+metadata:
+  version: "0.2.0"
 ---
-
 # Better Every Run
 
 Use this skill when the user corrects an outcome, states a preference, asks why something keeps failing, or wants an agent to improve future behavior from the current run.
