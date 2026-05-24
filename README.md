@@ -2,7 +2,7 @@
 
 Lightweight run learning for OpenClaw agents.
 
-Better Every Run turns small corrections into future behavior. The user gives the shortest possible instruction, and the skill hides the ledger, proposal, and memory-patch machinery behind a simple command-style flow.
+Better Every Run turns explicit `/ber` corrections into future behavior. It does not auto-capture casual chat. The user gives a short command, and the agent reports what was recorded and where it was stored.
 
 ## Human Surface
 
@@ -14,22 +14,23 @@ In OpenClaw chat:
 /ber report
 ```
 
-The agent handles the local helper, target file, evidence ledger, and durable memory write in the background. The human sees the command, the result, and any follow-up action.
+The agent handles the local helper, then tells the human whether the lesson stayed in the project-local `.better-every-run/` store or was appended to a named durable memory file.
 
 ## Product Rule
 
-- Humans should not manage accept/export/apply steps.
-- The agent should summarize the outcome in chat.
+- The skill runs only from explicit `/ber` use or a direct request to persist a lesson.
+- Humans should not manage accept/export/apply steps during normal use.
+- The agent should summarize the outcome in chat, including the storage location.
 - Durable memory writes must be explicit and target a real file.
 - No plugin, server, web UI, database, or external service is required.
 
 ## Storage
 
-The helper writes a project-local evidence trail for the agent. This is for audit/debugging and is not part of the normal human workflow.
+The helper writes a project-local evidence trail under `.better-every-run/`. That folder should stay private, be excluded from publishing, and can be reviewed or deleted by the workspace owner.
 
 ## Internal Helper
 
-The bundled helper is for agents, tests, and audits. Do not make humans manage helper paths, target files, accept/export/apply steps, or ledger files during normal use.
+The bundled helper is for agents, tests, and audits. Keep normal chat short, but disclose persistence and durable target files clearly.
 
 ## Verify
 

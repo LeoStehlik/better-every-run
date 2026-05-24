@@ -254,7 +254,11 @@ function cmdRemember(opts) {
 - Status: accepted
 - Text: ${lesson.text}${applied}
 
-Use this in chat as: "Better Every Run: remember this..."`);
+Storage:
+- Local store: ${STORE_DIR}/
+${opts.target ? `- Durable file changed: ${opts.target}` : "- Durable file changed: none"}
+
+Use this in chat as: "Better Every Run: remembered."`);
 }
 
 function parseFix(opts) {
@@ -306,7 +310,9 @@ function cmdFix(opts) {
 
 - From: ${from}
 - To: ${to}
-- Lesson: ${lesson.id}${applied}`);
+- Lesson: ${lesson.id}${applied}
+- Local store: ${STORE_DIR}/
+${opts.target ? `- Durable file changed: ${opts.target}` : "- Durable file changed: none"}`);
 }
 
 function cmdList(opts) {
@@ -468,6 +474,11 @@ function cmdReport(opts) {
 
   const label = opts.today ? "today" : opts.week ? "last 7 days" : "all time";
   console.log(`# Better Every Run report (${label})
+
+## Storage
+
+- Local store: ${STORE_DIR}/
+- Durable files changed: ${accepted.filter((lesson) => lesson.exportedTo).map((lesson) => lesson.exportedTo).filter((value, index, arr) => arr.indexOf(value) === index).join(", ") || "none"}
 
 ## Counts
 

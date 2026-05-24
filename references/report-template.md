@@ -8,12 +8,14 @@ Better Every Run report:
 - Events captured: N
 - Lessons accepted: M
 - Open proposals: K
+- Local store: `.better-every-run/`
+- Durable files changed: none or `<path>`
 
 Captured lessons:
 1. ...
 2. ...
 
-No open proposals. Nothing waiting for manual accept/export/apply.
+No open proposals. Nothing waiting for manual accept/export/apply. No durable memory file was changed unless listed above.
 ```
 
 Keep the user-facing report short. Mention internal commands only when debugging or auditing.

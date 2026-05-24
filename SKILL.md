@@ -1,13 +1,13 @@
 ---
 name: ber
-description: "Better Every Run: turn user corrections into preferred future outcomes through a simple /ber-style fix, remember, and report flow."
+description: "Better Every Run: turn explicit /ber corrections into preferred future outcomes through a small fix, remember, and report flow."
 user-invocable: true
 metadata:
-  version: "0.2.0"
+  version: "0.2.1"
 ---
 # Better Every Run
 
-Use this skill when the user corrects an outcome, states a preference, asks why something keeps failing, or wants an agent to improve future behavior from the current run.
+Use this skill only when the user explicitly invokes `/ber`, names Better Every Run, or directly asks to persist a lesson for future runs. Do not auto-capture ordinary corrections, casual preferences, or words like "remember", "always", "never", or "next time" unless the user clearly wants durable learning.
 
 The human path is deliberately small:
 
@@ -17,15 +17,14 @@ The human path is deliberately small:
 /ber report
 ```
 
-The agent runs the bundled local helper in the background and reports the result in chat.
+The agent runs the bundled local helper and reports the result in chat, including whether anything was written locally or appended to a durable memory file.
 
 ## When To Use
 
-- The user corrects an agent mistake or preference.
-- A tool/workflow failed in a way likely to repeat.
-- A workflow succeeded and should become reusable.
-- The user says "remember this", "next time", "always", or "never".
-- Before ending a substantial session where useful lessons were found.
+- The user explicitly types `/ber fix ... -> ...`.
+- The user explicitly types `/ber remember ...`.
+- The user explicitly asks for a Better Every Run report.
+- The user asks the agent to record a reusable correction as durable memory.
 
 ## Human Commands
 
@@ -39,10 +38,12 @@ The agent runs the bundled local helper in the background and reports the result
 
 - Report CLI output back in chat; do not build web pages or dashboards.
 - Do not silently edit `MEMORY.md`, `AGENTS.md`, `SOUL.md`, or other durable instruction files.
+- Only append to a durable memory file when the user explicitly asked for persistence or approved the target.
 - Keep corrections factual: bad outcome, desired outcome, target file if applying.
 - Avoid private data unless the user explicitly wants it captured.
-- Hide helper complexity from the user; never make them manage accept/export/apply steps during normal use.
+- Keep the user-facing flow short, but disclose persistence: local store, durable target file if used, and how to review it.
 - Design for the shortest path to the user's outcome.
+- Never publish `.better-every-run/` state, local lessons, event logs, or private corrections.
 
 ## Workflow
 
@@ -62,7 +63,13 @@ Use `/ber report` to show what was learned.
 
 ## Agent Implementation
 
-Keep helper paths, target-file selection, ledger files, and memory-patch mechanics out of the human-facing answer. The agent may use them internally for deterministic execution, tests, and audits.
+Keep low-level helper commands out of normal chat unless debugging, but never hide persistence. A normal answer should say whether the lesson was recorded only in `.better-every-run/` or appended to a named durable file.
 
 Read `references/workflow.md` for the full workflow.
 Read `references/report-template.md` for expected chat output shape.
+
+Before publishing or packaging, verify:
+- `.better-every-run/` is excluded
+- `make test` passes
+- examples contain no private workspace paths, chat IDs, tokens, or hostnames
+- docs say activation is explicit-only and persistence is disclosed

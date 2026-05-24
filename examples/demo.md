@@ -8,4 +8,4 @@ From any project directory:
 /ber report
 ```
 
-Expected result: the OpenClaw agent responds with the captured lesson or report. Helper paths, target files, and evidence files stay in the background.
+Expected result: the OpenClaw agent responds with the captured lesson or report and says where it was stored. Local evidence stays under `.better-every-run/`; durable memory files are changed only when explicitly targeted.
