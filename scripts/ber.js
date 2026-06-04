@@ -18,6 +18,9 @@ const TYPES = new Set([
   "note",
 ]);
 
+const SCOPES = new Set(["run", "project", "workspace", "skill", "memory", "eval"]);
+const PROMOTION_TARGETS = new Set(["memory", "skill", "eval"]);
+
 function usage() {
   return `Better Every Run
 
@@ -26,7 +29,8 @@ Usage:
   node scripts/ber.js fix "<bad outcome> -> <desired outcome>" [--target <markdown-file>] [--tags a,b]
   node scripts/ber.js fix --from <bad outcome> --to <desired outcome> [--target <markdown-file>] [--tags a,b]
   node scripts/ber.js capture --type <type> --note <text> [--source <text>] [--tags a,b]
-  node scripts/ber.js remember --note <text> [--type <type>] [--target <markdown-file>] [--tags a,b]
+  node scripts/ber.js remember --note <text> [--type <type>] [--scope <scope>] [--expires YYYY-MM-DD|never] [--target <markdown-file>] [--tags a,b]
+  node scripts/ber.js promote <lesson-id> --to <memory|skill|eval> --target <markdown-file> [--note <text>]
   node scripts/ber.js list [--today] [--limit N]
   node scripts/ber.js propose [--today] [--limit N]
   node scripts/ber.js report [--today|--week]
@@ -37,6 +41,9 @@ Usage:
 
 Types:
   ${Array.from(TYPES).join(", ")}
+
+Scopes:
+  ${Array.from(SCOPES).join(", ")}
 `;
 }
 
@@ -49,7 +56,7 @@ function parseArgs(argv) {
       continue;
     }
     const key = arg.slice(2);
-    if (key === "today" || key === "week") {
+    if (key === "today" || key === "week" || key === "all") {
       out[key] = true;
       continue;
     }
@@ -159,6 +166,51 @@ function formatTags(tags) {
   return tags && tags.length ? ` [${tags.join(", ")}]` : "";
 }
 
+function inferScope(event) {
+  if (event.scope) return event.scope;
+  const haystack = normalize(`${event.type} ${event.note} ${(event.tags || []).join(" ")}`);
+  if (/\b(eval|test|regression|benchmark|check)\b/.test(haystack)) return "eval";
+  if (/\b(skill|skill md|clawhub|slash command)\b/.test(haystack)) return "skill";
+  if (/\b(memory|remember|durable|preference|always|never|next time)\b/.test(haystack)) return "memory";
+  if (/\b(workspace|agent|operating rule|startup)\b/.test(haystack)) return "workspace";
+  if (/\b(session|this run|current run)\b/.test(haystack)) return "run";
+  return "project";
+}
+
+function promotionTargetsFor(lesson) {
+  const targets = [];
+  const haystack = normalize(`${lesson.category} ${lesson.scope} ${lesson.text}`);
+  if (lesson.scope === "memory" || /\b(always|never|preference|durable|remember|future)\b/.test(haystack)) {
+    targets.push("memory");
+  }
+  if (lesson.scope === "skill" || /\b(skill|command|workflow|human surface|clawhub)\b/.test(haystack)) {
+    targets.push("skill");
+  }
+  if (lesson.scope === "eval" || /\b(eval|test|regression|smoke|verify|failing|failure)\b/.test(haystack)) {
+    targets.push("eval");
+  }
+  return Array.from(new Set(targets));
+}
+
+function validateScope(scope) {
+  if (!SCOPES.has(scope)) {
+    throw new Error(`--scope must be one of: ${Array.from(SCOPES).join(", ")}`);
+  }
+}
+
+function normalizeExpires(value) {
+  if (!value) return "";
+  if (value === "never") return "never";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    throw new Error("--expires must be YYYY-MM-DD or never");
+  }
+  return value;
+}
+
+function isExpired(item, today = localDate()) {
+  return Boolean(item.expiresAt && item.expiresAt !== "never" && item.expiresAt < today);
+}
+
 function cmdInit() {
   ensureStore();
   console.log(`# Better Every Run initialized
@@ -190,6 +242,8 @@ function createEvent(opts) {
   if (!note || !note.trim()) {
     throw new Error("--note is required");
   }
+  const scope = opts.scope || inferScope({ type, note, tags: opts.tags ? opts.tags.split(",") : [] });
+  validateScope(scope);
   const now = new Date();
   const event = {
     id: makeId("evt"),
@@ -197,6 +251,8 @@ function createEvent(opts) {
     localTime: localStamp(now),
     date: localDate(now),
     type,
+    scope,
+    expiresAt: normalizeExpires(opts.expires || opts.expiry || ""),
     note: note.trim(),
     source: opts.source ? opts.source.trim() : "",
     tags: opts.tags ? opts.tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
@@ -206,17 +262,21 @@ function createEvent(opts) {
 
 function createLessonFromEvent(event, status = "proposed") {
   const now = new Date();
-  return {
+  const lesson = {
     id: makeId("les"),
     timestamp: now.toISOString(),
     localTime: localStamp(now),
     date: localDate(now),
     status,
     category: lessonCategory(event.type),
+    scope: inferScope(event),
+    expiresAt: event.expiresAt || "",
     text: lessonText(event),
     evidenceIds: [event.id],
     rationale: `Generated from ${event.type} event captured on ${event.date}.`,
   };
+  lesson.promotionTargets = promotionTargetsFor(lesson);
+  return lesson;
 }
 
 function cmdRemember(opts) {
@@ -237,6 +297,8 @@ function cmdRemember(opts) {
     note,
     source: opts.source || "remember",
     tags: opts.tags || "",
+    scope: opts.scope,
+    expires: opts.expires,
   });
 
   const lesson = createLessonFromEvent(event, "accepted");
@@ -292,6 +354,8 @@ function cmdFix(opts) {
     note,
     source: opts.source || "fix",
     tags: opts.tags || "fix",
+    scope: opts.scope,
+    expires: opts.expires,
   });
   appendJsonl(EVENTS_FILE, event);
 
@@ -324,7 +388,7 @@ function cmdList(opts) {
   }
   console.log("# Better Every Run events\n");
   for (const event of events) {
-    console.log(`- ${event.id} | ${event.date} | ${event.type}${formatTags(event.tags)}\n  ${event.note}`);
+    console.log(`- ${event.id} | ${event.date} | ${event.type} | scope=${event.scope || "project"}${event.expiresAt ? ` | expires=${event.expiresAt}` : ""}${formatTags(event.tags)}\n  ${event.note}`);
   }
 }
 
@@ -352,7 +416,7 @@ function cmdPropose(opts) {
 
   console.log("# Proposed lessons\n");
   for (const lesson of proposed) {
-    console.log(`- ${lesson.id} | ${lesson.category} | ${lesson.status}\n  ${lesson.text}\n  Evidence: ${lesson.evidenceIds.join(", ")}`);
+    console.log(`- ${lesson.id} | ${lesson.category} | ${lesson.status} | scope=${lesson.scope}${lesson.expiresAt ? ` | expires=${lesson.expiresAt}` : ""}\n  ${lesson.text}\n  Evidence: ${lesson.evidenceIds.join(", ")}\n  Promote: ${lesson.promotionTargets.length ? lesson.promotionTargets.join(", ") : "none"}`);
   }
 }
 
@@ -382,7 +446,8 @@ function memoryPatchBlock(lessons) {
   const today = localDate();
   const rows = lessons.map((lesson) => {
     const evidence = lesson.evidenceIds && lesson.evidenceIds.length ? ` Evidence: ${lesson.evidenceIds.join(", ")}.` : "";
-    return `- ${lesson.text} (${lesson.category}; ${lesson.status}; ${lesson.id}).${evidence}`;
+    const expiry = lesson.expiresAt ? ` expires ${lesson.expiresAt};` : "";
+    return `- ${lesson.text} (${lesson.category}; scope ${lesson.scope || "project"}; ${lesson.status};${expiry} ${lesson.id}).${evidence}`;
   });
   return `\n## Better Every Run accepted lessons - ${today}\n\n${rows.join("\n")}\n`;
 }
@@ -406,6 +471,51 @@ node scripts/ber.js accept <lesson-id>
 
 Review before applying. Suggested append block:
 ${memoryPatchBlock(lessons)}`);
+}
+
+function promotionBlock(lesson, targetType, note = "") {
+  const today = localDate();
+  const details = [
+    `- Lesson: ${lesson.id}`,
+    `- Category: ${lesson.category}`,
+    `- Scope: ${lesson.scope || "project"}`,
+    lesson.expiresAt ? `- Expires: ${lesson.expiresAt}` : "- Expires: none",
+    `- Evidence: ${(lesson.evidenceIds || []).join(", ") || "none"}`,
+    note ? `- Note: ${note}` : "",
+  ].filter(Boolean).join("\n");
+
+  if (targetType === "skill") {
+    return `\n## Better Every Run skill lesson - ${today}\n\n${details}\n\nSkill behavior to preserve:\n${lesson.text}\n`;
+  }
+  if (targetType === "eval") {
+    return `\n## Better Every Run eval case - ${today}\n\n${details}\n\nRegression expectation:\n${lesson.text}\n`;
+  }
+  return memoryPatchBlock([lesson]);
+}
+
+function cmdPromote(opts) {
+  const id = opts._[0];
+  const targetType = opts.to;
+  const target = opts.target;
+  if (!id) throw new Error("lesson-id is required");
+  if (!PROMOTION_TARGETS.has(targetType)) {
+    throw new Error(`--to must be one of: ${Array.from(PROMOTION_TARGETS).join(", ")}`);
+  }
+  if (!target) throw new Error("--target is required");
+  const targetPath = path.resolve(process.cwd(), target);
+  if (!fs.existsSync(targetPath)) throw new Error(`Target file does not exist: ${target}`);
+
+  const lessons = readJsonl(LESSONS_FILE);
+  const lesson = lessons.find((item) => item.id === id);
+  if (!lesson) throw new Error(`Lesson not found: ${id}`);
+  fs.appendFileSync(targetPath, promotionBlock(lesson, targetType, opts.note || ""), "utf8");
+  lesson.status = "promoted";
+  lesson.promotedAt = new Date().toISOString();
+  lesson.promotedLocalTime = localStamp();
+  lesson.promotedTo = targetType;
+  lesson.promotedTarget = target;
+  writeJsonl(LESSONS_FILE, lessons);
+  console.log(`# Lesson promoted\n\n- ID: ${lesson.id}\n- To: ${targetType}\n- Target: ${target}`);
 }
 
 function cmdApplyMemoryPatch(opts) {
@@ -470,7 +580,13 @@ function cmdReport(opts) {
   const openLessons = lessons.filter((lesson) => lesson.status === "proposed");
   const accepted = lessons.filter((lesson) => lesson.status === "accepted");
   const rejected = lessons.filter((lesson) => lesson.status === "rejected");
+  const promoted = lessons.filter((lesson) => lesson.status === "promoted");
+  const expired = lessons.filter((lesson) => isExpired(lesson));
   const recentEvents = events.slice(-5).reverse();
+  const promotionSuggestions = accepted
+    .filter((lesson) => !isExpired(lesson) && lesson.promotionTargets && lesson.promotionTargets.length)
+    .slice(-5)
+    .reverse();
 
   const label = opts.today ? "today" : opts.week ? "last 7 days" : "all time";
   console.log(`# Better Every Run report (${label})
@@ -487,6 +603,8 @@ function cmdReport(opts) {
 - Open proposals: ${openLessons.length}
 - Accepted: ${accepted.length}
 - Rejected: ${rejected.length}
+- Promoted: ${promoted.length}
+- Expired: ${expired.length}
 
 ## Event types
 
@@ -500,9 +618,16 @@ ${recentEvents.length ? recentEvents.map((event) => `- ${event.id} | ${event.typ
 
 ${openLessons.length ? openLessons.map((lesson) => `- ${lesson.id} | ${lesson.category}: ${lesson.text}`).join("\n") : "- none"}
 
+## Promotion suggestions
+
+${promotionSuggestions.length ? promotionSuggestions.map((lesson) => {
+  const first = lesson.promotionTargets[0];
+  return `- ${lesson.id} | ${lesson.scope}/${lesson.category}: promote to ${lesson.promotionTargets.join(", ")}\n  Example: node scripts/ber.js promote ${lesson.id} --to ${first} --target <markdown-file>`;
+}).join("\n") : "- none"}
+
 ## Next action
 
-${openLessons.length ? "Review proposed lessons. Accept only those that should become durable policy." : "Capture more evidence before changing durable policy."}`);
+${openLessons.length ? "Review proposed lessons. Accept only those that should become durable policy." : promotionSuggestions.length ? "Promote accepted lessons only when they should change memory, a skill, or an eval." : "Capture more evidence before changing durable policy."}`);
 }
 
 function main() {
@@ -517,6 +642,7 @@ function main() {
   if (command === "fix") return cmdFix(opts);
   if (command === "capture") return cmdCapture(opts);
   if (command === "remember") return cmdRemember(opts);
+  if (command === "promote") return cmdPromote(opts);
   if (command === "list") return cmdList(opts);
   if (command === "propose") return cmdPropose(opts);
   if (command === "report") return cmdReport(opts);
