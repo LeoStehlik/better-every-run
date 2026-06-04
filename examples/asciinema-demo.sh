@@ -7,17 +7,25 @@ trap 'rm -rf "$WORK"' EXIT
 cd "$WORK"
 
 say() {
+  sleep 0.8
   printf '\n# %s\n' "$*"
+  sleep 1.4
 }
 
 ber() {
+  sleep 0.5
   printf '\n$ ber %s\n' "$*"
+  sleep 0.8
   node "$ROOT/scripts/ber.js" "$@"
+  sleep 1.1
 }
 
 show_fixture() {
+  sleep 0.5
   printf '\n$ node -e "print eval fixture"\n'
+  sleep 0.8
   node -e 'const fs=require("fs"); const rows=JSON.parse(fs.readFileSync("evals/ber-regressions.json","utf8")); console.log(JSON.stringify(rows[0], null, 2));'
+  sleep 1.1
 }
 
 lesson_id() {
@@ -43,12 +51,15 @@ ber card "$LESSON_ID" --to eval --target eval-target.md
 
 say "4. Stale target protection: change the file after the card"
 printf 'changed after card\n' >> eval-target.md
+sleep 0.5
 printf '\n$ ber promote %s --to eval --target eval-target.md --require-card\n' "$LESSON_ID"
+sleep 0.8
 if node "$ROOT/scripts/ber.js" promote "$LESSON_ID" --to eval --target eval-target.md --require-card >/tmp/ber-stale-demo.out 2>&1; then
   cat /tmp/ber-stale-demo.out
 else
   cat /tmp/ber-stale-demo.out
 fi
+sleep 1.1
 
 say "5. Re-card and promote after review"
 ber card "$LESSON_ID" --to eval --target eval-target.md
