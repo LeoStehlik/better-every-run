@@ -4,6 +4,22 @@ Lightweight run learning for OpenClaw agents.
 
 Better Every Run turns explicit `/ber` corrections into future behavior. It does not auto-capture casual chat. The user gives a short command, and the agent reports what was recorded and where it was stored. Accepted lessons now carry scope, expiry, status, promotion hints, lesson cards, scanner verdicts, target hashes, lifecycle metadata, and eval-fixture output so an agent can decide whether a correction should stay local or become memory, a skill rule, or a regression case.
 
+## Install
+
+### OpenClaw / ClawHub
+
+```bash
+openclaw skills install better-every-run
+```
+
+### Manual
+
+```bash
+git clone https://github.com/LeoStehlik/better-every-run.git ~/.openclaw/workspace/skills/better-every-run
+```
+
+For Claude Code, Codex, or other agent harnesses, copy this folder into the harness skill directory and load `SKILL.md`.
+
 ## Human Surface
 
 In OpenClaw chat:
@@ -45,18 +61,53 @@ BER is deliberately upstream of heavier machinery:
 
 See `examples/upstream-loop.md` for the end-to-end flow.
 
-## GitHub Terminal Demo
+## Proof Artifact
 
-The repository includes a GitHub-only asciinema recording that walks through the
-governed BER flow: capture, report routing, lesson card, stale-target refusal,
-promotion, eval fixture generation, quarantine, supersede, and final report.
+The repo includes a GitHub-only asciinema recording [`examples/better-every-run-v0.5.cast`](examples/better-every-run-v0.5.cast) plus the replay script [`examples/asciinema-demo.sh`](examples/asciinema-demo.sh). It walks through the governed BER flow: capture, report routing, lesson card, stale-target refusal, promotion, eval fixture generation, quarantine, supersede, and final report.
+
+Replay it locally:
 
 ```bash
 asciinema play examples/better-every-run-v0.5.cast
 ```
 
-The recording, demo script, and terminal notes are kept out of the ClawHub
-installable package so the published skill stays lean.
+Regenerate it from the repo script:
+
+```bash
+asciinema rec --overwrite -q -i 1.0 -t "Better Every Run v0.5" \
+  -c "bash examples/asciinema-demo.sh" \
+  examples/better-every-run-v0.5.cast
+```
+
+The terminal recording, demo script, and terminal notes are intentionally GitHub-only; they are excluded from the ClawHub installable package so the published skill stays lean.
+
+## Repository
+
+```text
+better-every-run/
+├── SKILL.md
+├── examples/
+│   ├── asciinema-demo.sh
+│   ├── better-every-run-v0.5.cast
+│   ├── demo.md
+│   ├── terminal-demo.md
+│   └── upstream-loop.md
+├── references/
+│   ├── report-template.md
+│   └── workflow.md
+├── scripts/
+│   ├── ber
+│   └── ber.js
+├── tests/
+│   └── smoke.sh
+├── Makefile
+└── README.md
+```
+
+## Status
+
+Usable public skill bundle, published on ClawHub as `better-every-run@0.5.4`. The GitHub repo also carries the terminal demo proof artifact.
+
 
 ## Verify
 
