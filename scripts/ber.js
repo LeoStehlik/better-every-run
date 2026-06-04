@@ -2,10 +2,12 @@
 
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 
 const STORE_DIR = ".better-every-run";
 const EVENTS_FILE = "events.jsonl";
 const LESSONS_FILE = "lessons.jsonl";
+const CARDS_DIR = "cards";
 
 const TYPES = new Set([
   "correction",
@@ -30,6 +32,7 @@ Usage:
   node scripts/ber.js fix --from <bad outcome> --to <desired outcome> [--target <markdown-file>] [--tags a,b]
   node scripts/ber.js capture --type <type> --note <text> [--source <text>] [--tags a,b]
   node scripts/ber.js remember --note <text> [--type <type>] [--scope <scope>] [--expires YYYY-MM-DD|never] [--target <markdown-file>] [--tags a,b]
+  node scripts/ber.js card <lesson-id> --to <memory|skill|eval> --target <markdown-file> [--note <text>]
   node scripts/ber.js promote <lesson-id> --to <memory|skill|eval> --target <markdown-file> [--note <text>]
   node scripts/ber.js list [--today] [--limit N]
   node scripts/ber.js propose [--today] [--limit N]
@@ -56,7 +59,7 @@ function parseArgs(argv) {
       continue;
     }
     const key = arg.slice(2);
-    if (key === "today" || key === "week" || key === "all") {
+    if (key === "today" || key === "week" || key === "all" || key === "force" || key === "require-card") {
       out[key] = true;
       continue;
     }
@@ -92,8 +95,13 @@ function storePath(file) {
   return path.join(process.cwd(), STORE_DIR, file);
 }
 
+function cardPath(id) {
+  return path.join(process.cwd(), STORE_DIR, CARDS_DIR, `${id}.md`);
+}
+
 function ensureStore() {
   fs.mkdirSync(path.join(process.cwd(), STORE_DIR), { recursive: true });
+  fs.mkdirSync(path.join(process.cwd(), STORE_DIR, CARDS_DIR), { recursive: true });
   for (const file of [EVENTS_FILE, LESSONS_FILE]) {
     const p = storePath(file);
     if (!fs.existsSync(p)) fs.writeFileSync(p, "", "utf8");
@@ -213,6 +221,72 @@ function normalizeExpires(value) {
 
 function isExpired(item, today = localDate()) {
   return Boolean(item.expiresAt && item.expiresAt !== "never" && item.expiresAt < today);
+}
+
+
+function targetPathFor(target) {
+  if (!target) throw new Error("--target is required");
+  const targetPath = path.resolve(process.cwd(), target);
+  const rel = path.relative(process.cwd(), targetPath);
+  if (rel.startsWith("..") || path.isAbsolute(rel)) {
+    throw new Error(`Target must stay inside the current project: ${target}`);
+  }
+  if (!fs.existsSync(targetPath)) throw new Error(`Target file does not exist: ${target}`);
+  return { targetPath, rel };
+}
+
+function hashFile(file) {
+  return crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
+}
+
+function findLesson(lessons, id) {
+  if (!id) throw new Error("lesson-id is required");
+  const lesson = lessons.find((item) => item.id === id);
+  if (!lesson) throw new Error(`Lesson not found: ${id}`);
+  return lesson;
+}
+
+function scanPromotion(lesson, targetType, target, renderedBlock) {
+  const text = `${lesson.text}\n${lesson.rationale || ""}\n${renderedBlock || ""}`;
+  const hard = [];
+  const warnings = [];
+  const checks = [
+    [/\/Users\/[^\s)]+/, "local macOS user path"],
+    [/\/home\/(less|leos)\b/, "private home path"],
+    [/\b100\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/, "Tailscale/private network address"],
+    [/\b192\.168\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/, "private LAN address"],
+    [/\b7495670101\b/, "private Telegram chat id"],
+    [/\b(?:api[_-]?key|secret|password|token)\s*[:=]/i, "credential-looking assignment"],
+  ];
+  for (const [pattern, label] of checks) {
+    if (pattern.test(text) || pattern.test(target)) hard.push(label);
+  }
+  if (/\b(always|never)\b/i.test(lesson.text) && lesson.scope !== "memory") {
+    warnings.push("broad always/never language outside memory scope");
+  }
+  if (/\b(hidden|silent|background|daemon|watchdog|persist(?:ent|ence)?)\b/i.test(lesson.text)) {
+    warnings.push("persistence/background wording needs human review");
+  }
+  if (targetType === "skill" && lesson.scope !== "skill" && /\b(fact|preference|likes|birthday|address)\b/i.test(lesson.text)) {
+    warnings.push("possible fact/preference being promoted to a procedural skill");
+  }
+  if (targetType === "memory" && /\b(step|run|execute|command|workflow|verify)\b/i.test(lesson.text)) {
+    warnings.push("possible procedure being promoted to memory instead of a skill or eval");
+  }
+  return {
+    verdict: hard.length ? "blocked" : warnings.length ? "review" : "clean",
+    hard,
+    warnings,
+    checkedAt: new Date().toISOString(),
+  };
+}
+
+function scanLines(scan) {
+  return [
+    `- Verdict: ${scan.verdict}`,
+    `- Hard blocks: ${scan.hard.length ? scan.hard.join(", ") : "none"}`,
+    `- Warnings: ${scan.warnings.length ? scan.warnings.join(", ") : "none"}`,
+  ].join("\n");
 }
 
 function cmdInit() {
@@ -497,29 +571,106 @@ function promotionBlock(lesson, targetType, note = "") {
   return memoryPatchBlock([lesson]);
 }
 
-function cmdPromote(opts) {
+function lessonCardMarkdown(lesson, targetType, target, targetHash, scan, note = "") {
+  return `# Better Every Run lesson card: ${lesson.id}
+
+## Lesson
+
+- Status: ${lesson.status}
+- Category: ${lesson.category}
+- Scope: ${lesson.scope || "project"}
+- Expires: ${lesson.expiresAt || "none"}
+- Evidence: ${(lesson.evidenceIds || []).join(", ") || "none"}
+- Promotion target: ${targetType}
+- Target file: ${target}
+- Target SHA-256: ${targetHash}
+${note ? `- Note: ${note}\n` : ""}
+## Correction
+
+${lesson.text}
+
+## Scanner
+
+${scanLines(scan)}
+
+## Apply
+
+Review this card, then run:
+
+~~~bash
+node scripts/ber.js promote ${lesson.id} --to ${targetType} --target ${target}
+~~~
+`;
+}
+
+function cmdCard(opts) {
   const id = opts._[0];
   const targetType = opts.to;
-  const target = opts.target;
-  if (!id) throw new Error("lesson-id is required");
   if (!PROMOTION_TARGETS.has(targetType)) {
     throw new Error(`--to must be one of: ${Array.from(PROMOTION_TARGETS).join(", ")}`);
   }
-  if (!target) throw new Error("--target is required");
-  const targetPath = path.resolve(process.cwd(), target);
-  if (!fs.existsSync(targetPath)) throw new Error(`Target file does not exist: ${target}`);
-
+  const { targetPath, rel } = targetPathFor(opts.target);
   const lessons = readJsonl(LESSONS_FILE);
-  const lesson = lessons.find((item) => item.id === id);
-  if (!lesson) throw new Error(`Lesson not found: ${id}`);
-  fs.appendFileSync(targetPath, promotionBlock(lesson, targetType, opts.note || ""), "utf8");
+  const lesson = findLesson(lessons, id);
+  const rendered = promotionBlock(lesson, targetType, opts.note || "");
+  const scan = scanPromotion(lesson, targetType, rel, rendered);
+  const targetHash = hashFile(targetPath);
+  const plan = {
+    targetType,
+    target: rel,
+    targetHash,
+    scan,
+    cardPath: path.relative(process.cwd(), cardPath(lesson.id)),
+    createdAt: new Date().toISOString(),
+  };
+  lesson.promotionPlan = plan;
+  fs.writeFileSync(cardPath(lesson.id), lessonCardMarkdown(lesson, targetType, rel, targetHash, scan, opts.note || ""), "utf8");
+  writeJsonl(LESSONS_FILE, lessons);
+  console.log(`# Lesson card written\n\n- ID: ${lesson.id}\n- Card: ${plan.cardPath}\n- To: ${targetType}\n- Target: ${rel}\n- Target SHA-256: ${targetHash}\n${scanLines(scan)}`);
+}
+
+function cmdPromote(opts) {
+  const id = opts._[0];
+  const targetType = opts.to;
+  if (!PROMOTION_TARGETS.has(targetType)) {
+    throw new Error(`--to must be one of: ${Array.from(PROMOTION_TARGETS).join(", ")}`);
+  }
+  const { targetPath, rel } = targetPathFor(opts.target);
+  const lessons = readJsonl(LESSONS_FILE);
+  const lesson = findLesson(lessons, id);
+  const rendered = promotionBlock(lesson, targetType, opts.note || "");
+  const scan = scanPromotion(lesson, targetType, rel, rendered);
+  if (scan.hard.length) {
+    throw new Error(`Promotion blocked by BER scanner: ${scan.hard.join(", ")}`);
+  }
+  if (scan.warnings.length && !opts.force) {
+    throw new Error(`Promotion needs review: ${scan.warnings.join(", ")}. Re-run with --force after review.`);
+  }
+
+  const plan = lesson.promotionPlan;
+  if (opts["require-card"] && !plan) {
+    throw new Error("Promotion requires a lesson card. Run card first.");
+  }
+  if (plan && plan.targetType === targetType && plan.target === rel) {
+    const currentHash = hashFile(targetPath);
+    if (currentHash !== plan.targetHash) {
+      throw new Error(`Target changed since lesson card was written: ${rel}. Expected ${plan.targetHash}, got ${currentHash}. Re-run card before promoting.`);
+    }
+  }
+
+  const targetHashBefore = hashFile(targetPath);
+  fs.appendFileSync(targetPath, rendered, "utf8");
+  const targetHashAfter = hashFile(targetPath);
   lesson.status = "promoted";
   lesson.promotedAt = new Date().toISOString();
   lesson.promotedLocalTime = localStamp();
   lesson.promotedTo = targetType;
-  lesson.promotedTarget = target;
+  lesson.promotedTarget = rel;
+  lesson.promotedTargetHashBefore = targetHashBefore;
+  lesson.promotedTargetHashAfter = targetHashAfter;
+  lesson.promotedScan = scan;
   writeJsonl(LESSONS_FILE, lessons);
-  console.log(`# Lesson promoted\n\n- ID: ${lesson.id}\n- To: ${targetType}\n- Target: ${target}`);
+  console.log(`# Lesson promoted\n\n- ID: ${lesson.id}\n- To: ${targetType}\n- Target: ${rel}\n${scanLines(scan)}`);
 }
 
 function cmdApplyMemoryPatch(opts) {
@@ -646,6 +797,7 @@ function main() {
   if (command === "fix") return cmdFix(opts);
   if (command === "capture") return cmdCapture(opts);
   if (command === "remember") return cmdRemember(opts);
+  if (command === "card") return cmdCard(opts);
   if (command === "promote") return cmdPromote(opts);
   if (command === "list") return cmdList(opts);
   if (command === "propose") return cmdPropose(opts);
