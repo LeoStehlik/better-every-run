@@ -3,7 +3,7 @@ name: ber
 description: "Better Every Run: turn explicit /ber corrections into preferred future outcomes through a small fix, remember, and report flow."
 user-invocable: true
 metadata:
-  version: "0.2.1"
+  version: "0.3.0"
 ---
 # Better Every Run
 
@@ -17,7 +17,7 @@ The human path is deliberately small:
 /ber report
 ```
 
-The agent runs the bundled local helper and reports the result in chat, including whether anything was written locally or appended to a durable memory file.
+The agent runs the bundled local helper and reports the result in chat, including whether anything was written locally or appended to a durable memory file. Lessons may carry scope, expiry, status, and promotion hints for memory, skill, or eval follow-up.
 
 ## When To Use
 
@@ -40,6 +40,7 @@ The agent runs the bundled local helper and reports the result in chat, includin
 - Do not silently edit `MEMORY.md`, `AGENTS.md`, `SOUL.md`, or other durable instruction files.
 - Only append to a durable memory file when the user explicitly asked for persistence or approved the target.
 - Keep corrections factual: bad outcome, desired outcome, target file if applying.
+- Use scope metadata when it helps decide whether a lesson belongs only to this run, the project, the workspace, a skill, memory, or an eval.
 - Avoid private data unless the user explicitly wants it captured.
 - Keep the user-facing flow short, but disclose persistence: local store, durable target file if used, and how to review it.
 - Design for the shortest path to the user's outcome.
@@ -59,7 +60,7 @@ For simple one-line preferences:
 /ber remember simple rule
 ```
 
-Use `/ber report` to show what was learned.
+Use `/ber report` to show what was learned, including open proposals and promotion suggestions.
 
 ## Agent Implementation
 
@@ -71,5 +72,6 @@ Read `references/report-template.md` for expected chat output shape.
 Before publishing or packaging, verify:
 - `.better-every-run/` is excluded
 - `make test` passes
+- promotion demos are generic and contain no private workspace paths, chat IDs, tokens, or hostnames
 - examples contain no private workspace paths, chat IDs, tokens, or hostnames
 - docs say activation is explicit-only and persistence is disclosed

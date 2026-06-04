@@ -18,7 +18,7 @@ In OpenClaw chat, the human-facing prompt should be this simple:
 /ber fix agent used wrong host for code work -> agent uses the approved development host
 ```
 
-The agent handles the helper command and reports the result, including whether data was written only to `.better-every-run/` or also to a durable memory file.
+The agent handles the helper command and reports the result, including whether data was written only to `.better-every-run/` or also to a durable memory file. Use `--scope` when the lesson has an obvious destination: `run`, `project`, `workspace`, `skill`, `memory`, or `eval`. Use `--expires YYYY-MM-DD` for temporary rules, or `--expires never` for explicit long-lived lessons.
 
 For simple preferences:
 
@@ -68,9 +68,21 @@ Return the report in chat:
 
 Keep the chat report short. Include storage status and any open proposed lessons.
 
+## Promote To Memory, Skill, Or Eval
+
+This flow is for agents, audits, tests, and explicit durable writes. In normal chat, summarize the result instead of making the human operate helper commands, but disclose any durable target file.
+
+```bash
+node scripts/ber.js promote <lesson-id> --to memory --target memory/decisions.md
+node scripts/ber.js promote <lesson-id> --to skill --target SKILL.md
+node scripts/ber.js promote <lesson-id> --to eval --target tests/ber-regressions.md
+```
+
+Promotion appends a reviewable block to the target file and marks the lesson as promoted in the local store.
+
 ## Apply Durable Memory
 
-This flow is for audits, tests, and explicit durable writes. In normal chat, summarize the result instead of making the human operate the helper commands, but disclose any durable target file.
+This older patch flow remains available for audits and bulk accepted-lesson exports.
 
 ```bash
 node scripts/ber.js accept <lesson-id>
