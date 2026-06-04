@@ -45,6 +45,19 @@ BER is deliberately upstream of heavier machinery:
 
 See `examples/upstream-loop.md` for the end-to-end flow.
 
+## GitHub Terminal Demo
+
+The repository includes a GitHub-only asciinema recording that walks through the
+governed BER flow: capture, report routing, lesson card, stale-target refusal,
+promotion, eval fixture generation, quarantine, supersede, and final report.
+
+```bash
+asciinema play examples/better-every-run-v0.5.cast
+```
+
+The recording, demo script, and terminal notes are kept out of the ClawHub
+installable package so the published skill stays lean.
+
 ## Verify
 
 ```bash

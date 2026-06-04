@@ -3,7 +3,7 @@ name: ber
 description: "Better Every Run: turn explicit /ber corrections into preferred future outcomes through a small fix, remember, and report flow."
 user-invocable: true
 metadata:
-  version: "0.5.2"
+  version: "0.5.4"
 ---
 # Better Every Run
 
