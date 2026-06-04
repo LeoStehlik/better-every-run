@@ -258,7 +258,7 @@ function scanPromotion(lesson, targetType, target, renderedBlock) {
     [/\/home\/(less|leos)\b/, "private home path"],
     [/\b100\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/, "Tailscale/private network address"],
     [/\b192\.168\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/, "private LAN address"],
-    [/\b7495670101\b/, "private Telegram chat id"],
+    [/(?:chat id|message id).{0,24}\b\d{7,12}\b/i, "private chat id"],
     [/\b(?:api[_-]?key|secret|password|token)\s*[:=]/i, "credential-looking assignment"],
   ];
   for (const [pattern, label] of checks) {

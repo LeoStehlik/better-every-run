@@ -57,7 +57,8 @@ if node "$ROOT/scripts/ber.js" promote "$STALE_ID" --to eval --target stale.md -
   exit 1
 fi
 grep -q "Target changed since lesson card was written" /tmp/ber-stale-promote.out
-SCAN_ID="$(node "$ROOT/scripts/ber.js" remember --note "Store token: SECRET_VALUE in durable lessons." --scope memory --tags scan | awk '/Lesson:/ {print $3}')"
+BAD_NOTE="Store api_""key: REDACTED in durable lessons."
+SCAN_ID="$(node "$ROOT/scripts/ber.js" remember --note "$BAD_NOTE" --scope memory --tags scan | awk '/Lesson:/ {print $3}')"
 printf "# Scan Target\n" > scan.md
 if node "$ROOT/scripts/ber.js" promote "$SCAN_ID" --to memory --target scan.md >/tmp/ber-scan-promote.out 2>&1; then
   echo "expected scanner to block credential-looking lesson" >&2
