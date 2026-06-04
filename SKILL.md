@@ -3,7 +3,7 @@ name: ber
 description: "Better Every Run: turn explicit /ber corrections into preferred future outcomes through a small fix, remember, and report flow."
 user-invocable: true
 metadata:
-  version: "0.3.0"
+  version: "0.5.0"
 ---
 # Better Every Run
 
@@ -17,7 +17,7 @@ The human path is deliberately small:
 /ber report
 ```
 
-The agent runs the bundled local helper and reports the result in chat, including whether anything was written locally or appended to a durable memory file. Lessons may carry scope, expiry, status, and promotion hints for memory, skill, or eval follow-up.
+The agent runs the bundled local helper and reports the result in chat, including whether anything was written locally or appended to a durable memory file. Lessons may carry scope, expiry, status, promotion hints, lesson cards, scanner verdicts, target hashes, quarantine/supersession metadata, and eval-fixture follow-up.
 
 ## When To Use
 
@@ -72,6 +72,6 @@ Read `references/report-template.md` for expected chat output shape.
 Before publishing or packaging, verify:
 - `.better-every-run/` is excluded
 - `make test` passes
-- promotion demos are generic and contain no private workspace paths, chat IDs, tokens, or hostnames
+- lesson-card, lifecycle, and eval-fixture demos are generic and contain no private workspace paths, chat IDs, tokens, or hostnames
 - examples contain no private workspace paths, chat IDs, tokens, or hostnames
 - docs say activation is explicit-only and persistence is disclosed

@@ -22,26 +22,36 @@ node scripts/ber.js report --today
 
 The report shows accepted lessons, expiry/status metadata, and promotion suggestions.
 
-## 3. Promote only when useful
+## 3. Write a lesson card before promotion
+
+Lesson card:
+
+```bash
+node scripts/ber.js card <lesson-id> --to eval --target tests/ber-regressions.json
+```
+
+The card records the target hash and scanner verdict before a durable file is changed.
+
+## 4. Promote only when useful
 
 Memory promotion:
 
 ```bash
-node scripts/ber.js promote <lesson-id> --to memory --target memory/decisions.md
+node scripts/ber.js promote <lesson-id> --to memory --target memory/decisions.md --require-card
 ```
 
 Skill promotion:
 
 ```bash
-node scripts/ber.js promote <lesson-id> --to skill --target SKILL.md
+node scripts/ber.js promote <lesson-id> --to skill --target SKILL.md --require-card
 ```
 
 Eval promotion:
 
 ```bash
-node scripts/ber.js promote <lesson-id> --to eval --target tests/ber-regressions.md
+node scripts/ber.js eval-fixture <lesson-id> --target tests/ber-regressions.json
 ```
 
 ## Product Point
 
-The human still sees the small `/ber` surface. The agent gets enough structure to decide whether the correction belongs in memory, a skill, or an eval.
+The human still sees the small `/ber` surface. The agent gets enough structure to decide whether the correction belongs in memory, a skill, an eval fixture, quarantine, supersession, or nowhere.

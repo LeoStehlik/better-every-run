@@ -2,7 +2,7 @@
 
 Lightweight run learning for OpenClaw agents.
 
-Better Every Run turns explicit `/ber` corrections into future behavior. It does not auto-capture casual chat. The user gives a short command, and the agent reports what was recorded and where it was stored. Accepted lessons now carry scope, expiry, status, and promotion hints so an agent can decide whether a correction should stay local or become memory, a skill rule, or an eval case.
+Better Every Run turns explicit `/ber` corrections into future behavior. It does not auto-capture casual chat. The user gives a short command, and the agent reports what was recorded and where it was stored. Accepted lessons now carry scope, expiry, status, promotion hints, lesson cards, scanner verdicts, target hashes, lifecycle metadata, and eval-fixture output so an agent can decide whether a correction should stay local or become memory, a skill rule, or a regression case.
 
 ## Human Surface
 
@@ -31,15 +31,17 @@ The helper writes a project-local evidence trail under `.better-every-run/`. Tha
 
 ## Internal Helper
 
-The bundled helper is for agents, tests, and audits. Keep normal chat short, but disclose persistence and durable target files clearly. Promotion commands are agent-facing: `promote --to memory`, `promote --to skill`, and `promote --to eval` append a reviewable block to a real target file and mark the lesson promoted.
+The bundled helper is for agents, tests, and audits. Keep normal chat short, but disclose persistence and durable target files clearly. Promotion commands are agent-facing: `card --to memory|skill|eval` writes a lesson card with scanner state and target hash; `promote --to memory|skill|eval --require-card` appends only when the card is still fresh; `eval-fixture` turns a correction into a JSON regression case.
 
 ## Upstream Of Skills, Memory, And Evals
 
 BER is deliberately upstream of heavier machinery:
 
 - Use `/ber fix` when the human corrects a bad outcome.
-- Use `/ber report` to see accepted lessons, open proposals, expired lessons, and promotion suggestions.
-- Promote only the lessons that deserve durability. Memory captures operating preferences, skills capture reusable behavior, and evals capture regressions that should fail if the agent slips again.
+- Use `/ber report` to see accepted lessons, open proposals, expired lessons, lifecycle counts, and promotion suggestions.
+- Write a lesson card before durable promotion so stale targets and scanner issues are caught before a file is changed.
+- Quarantine one-off/bad lessons and supersede stale lessons when a better rule replaces them.
+- Promote only the lessons that deserve durability. Memory captures operating preferences, skills capture reusable behavior, and eval fixtures capture regressions that should fail if the agent slips again.
 
 See `examples/upstream-loop.md` for the end-to-end flow.
 

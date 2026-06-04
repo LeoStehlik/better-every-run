@@ -73,12 +73,23 @@ Keep the chat report short. Include storage status and any open proposed lessons
 This flow is for agents, audits, tests, and explicit durable writes. In normal chat, summarize the result instead of making the human operate helper commands, but disclose any durable target file.
 
 ```bash
-node scripts/ber.js promote <lesson-id> --to memory --target memory/decisions.md
-node scripts/ber.js promote <lesson-id> --to skill --target SKILL.md
-node scripts/ber.js promote <lesson-id> --to eval --target tests/ber-regressions.md
+node scripts/ber.js card <lesson-id> --to memory --target memory/decisions.md
+node scripts/ber.js promote <lesson-id> --to memory --target memory/decisions.md --require-card
+node scripts/ber.js card <lesson-id> --to skill --target SKILL.md
+node scripts/ber.js promote <lesson-id> --to skill --target SKILL.md --require-card
+node scripts/ber.js eval-fixture <lesson-id> --target tests/ber-regressions.json
 ```
 
-Promotion appends a reviewable block to the target file and marks the lesson as promoted in the local store.
+Lesson cards record target hashes and scanner verdicts before promotion. Promotion appends a reviewable block only if the target has not changed since the card was written. Eval fixtures write JSON regression cases for repeated failures.
+
+## Lifecycle Hygiene
+
+Use quarantine and supersession to keep learning sharp:
+
+```bash
+node scripts/ber.js quarantine <lesson-id> --reason "one-off"
+node scripts/ber.js supersede <old-lesson-id> --by <new-lesson-id> --reason "environment changed"
+```
 
 ## Apply Durable Memory
 
