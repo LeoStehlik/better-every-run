@@ -77,4 +77,18 @@ grep -q "Human command hides the ledger machinery" facade.md
 node "$ROOT/scripts/ber" report --today >/tmp/ber-facade-report.out
 grep -q "Better Every Run report" /tmp/ber-facade-report.out
 
+
+QUAR_ID="$(node "$ROOT/scripts/ber.js" remember --note "This one-off correction should not become durable policy." --scope project --tags lifecycle | awk '/Lesson:/ {print $3}')"
+node "$ROOT/scripts/ber.js" quarantine "$QUAR_ID" --reason "one-off" >/tmp/ber-quarantine.out
+grep -q "Lesson quarantined" /tmp/ber-quarantine.out
+grep -q '"status":"quarantined"' .better-every-run/lessons.jsonl
+OLD_ID="$(node "$ROOT/scripts/ber.js" remember --note "Use the old deployment checklist." --scope skill --tags lifecycle | awk '/Lesson:/ {print $3}')"
+NEW_ID="$(node "$ROOT/scripts/ber.js" remember --note "Use the new deployment checklist with verification proof." --scope skill --tags lifecycle | awk '/Lesson:/ {print $3}')"
+node "$ROOT/scripts/ber.js" supersede "$OLD_ID" --by "$NEW_ID" --reason "new checklist has proof" >/tmp/ber-supersede.out
+grep -q "Lesson superseded" /tmp/ber-supersede.out
+grep -q '"status":"superseded"' .better-every-run/lessons.jsonl
+node "$ROOT/scripts/ber.js" report --today >/tmp/ber-lifecycle-report.out
+grep -q "Quarantined:" /tmp/ber-lifecycle-report.out
+grep -q "Superseded:" /tmp/ber-lifecycle-report.out
+
 echo "smoke ok"

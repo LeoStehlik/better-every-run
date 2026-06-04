@@ -39,6 +39,8 @@ Usage:
   node scripts/ber.js report [--today|--week]
   node scripts/ber.js accept <lesson-id>
   node scripts/ber.js reject <lesson-id> [--reason <text>]
+  node scripts/ber.js quarantine <lesson-id> --reason <text>
+  node scripts/ber.js supersede <old-lesson-id> --by <new-lesson-id> [--reason <text>]
   node scripts/ber.js export-memory-patch [--all]
   node scripts/ber.js apply-memory-patch --target <markdown-file> [--all]
 
@@ -501,18 +503,38 @@ function cmdPropose(opts) {
 function updateLessonStatus(id, status, reason = "") {
   if (!id) throw new Error("lesson-id is required");
   const lessons = readJsonl(LESSONS_FILE);
-  const lesson = lessons.find((item) => item.id === id);
-  if (!lesson) throw new Error(`Lesson not found: ${id}`);
+  const lesson = findLesson(lessons, id);
   lesson.status = status;
   lesson.decisionAt = new Date().toISOString();
   lesson.decisionLocalTime = localStamp();
   if (reason) lesson.decisionReason = reason;
   writeJsonl(LESSONS_FILE, lessons);
-  console.log(`# Lesson ${status}
+  console.log(`# Lesson ${status}\n\n- ID: ${lesson.id}\n- Category: ${lesson.category}\n- Text: ${lesson.text}${reason ? `\n- Reason: ${reason}` : ""}`);
+}
 
-- ID: ${lesson.id}
-- Category: ${lesson.category}
-- Text: ${lesson.text}${reason ? `\n- Reason: ${reason}` : ""}`);
+function cmdQuarantine(opts) {
+  const reason = opts.reason || "";
+  if (!reason.trim()) throw new Error("--reason is required for quarantine");
+  return updateLessonStatus(opts._[0], "quarantined", reason);
+}
+
+function cmdSupersede(opts) {
+  const oldId = opts._[0];
+  const newId = opts.by;
+  if (!oldId) throw new Error("old lesson-id is required");
+  if (!newId) throw new Error("--by <new-lesson-id> is required");
+  const lessons = readJsonl(LESSONS_FILE);
+  const oldLesson = findLesson(lessons, oldId);
+  const newLesson = findLesson(lessons, newId);
+  const now = new Date();
+  oldLesson.status = "superseded";
+  oldLesson.supersededBy = newLesson.id;
+  oldLesson.decisionAt = now.toISOString();
+  oldLesson.decisionLocalTime = localStamp(now);
+  if (opts.reason) oldLesson.decisionReason = opts.reason;
+  newLesson.supersedes = Array.from(new Set([...(newLesson.supersedes || []), oldLesson.id]));
+  writeJsonl(LESSONS_FILE, lessons);
+  console.log(`# Lesson superseded\n\n- Old: ${oldLesson.id}\n- New: ${newLesson.id}${opts.reason ? `\n- Reason: ${opts.reason}` : ""}`);
 }
 
 function selectedMemoryLessons(opts) {
@@ -735,6 +757,8 @@ function cmdReport(opts) {
   const openLessons = lessons.filter((lesson) => lesson.status === "proposed");
   const accepted = lessons.filter((lesson) => lesson.status === "accepted");
   const rejected = lessons.filter((lesson) => lesson.status === "rejected");
+  const quarantined = lessons.filter((lesson) => lesson.status === "quarantined");
+  const superseded = lessons.filter((lesson) => lesson.status === "superseded");
   const promoted = lessons.filter((lesson) => lesson.status === "promoted");
   const expired = lessons.filter((lesson) => isExpired(lesson));
   const recentEvents = events.slice(-5).reverse();
@@ -758,6 +782,8 @@ function cmdReport(opts) {
 - Open proposals: ${openLessons.length}
 - Accepted: ${accepted.length}
 - Rejected: ${rejected.length}
+- Quarantined: ${quarantined.length}
+- Superseded: ${superseded.length}
 - Promoted: ${promoted.length}
 - Expired: ${expired.length}
 
@@ -804,6 +830,8 @@ function main() {
   if (command === "report") return cmdReport(opts);
   if (command === "accept") return updateLessonStatus(opts._[0], "accepted");
   if (command === "reject") return updateLessonStatus(opts._[0], "rejected", opts.reason || "");
+  if (command === "quarantine") return cmdQuarantine(opts);
+  if (command === "supersede") return cmdSupersede(opts);
   if (command === "export-memory-patch") return cmdExportMemoryPatch(opts);
   if (command === "apply-memory-patch") return cmdApplyMemoryPatch(opts);
 
