@@ -853,7 +853,7 @@ ${openLessons.length ? openLessons.map((lesson) => `- ${lesson.id} | ${lesson.ca
 
 ${promotionSuggestions.length ? promotionSuggestions.map((lesson) => {
   const first = lesson.promotionTargets[0];
-  return `- ${lesson.id} | ${lesson.scope}/${lesson.category}: promote to ${lesson.promotionTargets.join(", ")}\n  Example: node scripts/ber.js promote ${lesson.id} --to ${first} --target <markdown-file>`;
+  return `- ${lesson.id} | ${lesson.scope}/${lesson.category}: promote to ${lesson.promotionTargets.join(", ")}\n  Review: node scripts/ber.js card ${lesson.id} --to ${first} --target <markdown-file>\n  Apply: node scripts/ber.js promote ${lesson.id} --to ${first} --target <markdown-file> --require-card`;
 }).join("\n") : "- none"}
 
 ## Next action
