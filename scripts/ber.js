@@ -143,7 +143,8 @@ function normalize(text) {
 function lessonCategory(type) {
   if (type === "failure" || type === "warning") return "warning";
   if (type === "tooling") return "tooling";
-  if (type === "preference" || type === "correction") return "preference";
+  if (type === "correction") return "correction";
+  if (type === "preference") return "preference";
   if (type === "success" || type === "workflow") return "workflow";
   return "note";
 }
@@ -178,20 +179,22 @@ function inferScope(event) {
 }
 
 function promotionTargetsFor(lesson) {
+  if (["memory", "skill", "eval"].includes(lesson.scope)) return [lesson.scope];
+  if (lesson.scope === "run") return [];
+
   const targets = [];
   const haystack = normalize(`${lesson.category} ${lesson.scope} ${lesson.text}`);
-  if (lesson.scope === "memory" || /\b(always|never|preference|durable|remember|future)\b/.test(haystack)) {
+  if (lesson.scope === "workspace" || /(always|never|durable|remember|future runs|operating rule)/.test(haystack)) {
     targets.push("memory");
   }
-  if (lesson.scope === "skill" || /\b(skill|command|workflow|human surface|clawhub)\b/.test(haystack)) {
+  if (/(skill|command|workflow|human surface|clawhub)/.test(haystack)) {
     targets.push("skill");
   }
-  if (lesson.scope === "eval" || /\b(eval|test|regression|smoke|verify|failing|failure)\b/.test(haystack)) {
+  if (/(eval|test|regression|smoke|verify|failing|failure)/.test(haystack)) {
     targets.push("eval");
   }
   return Array.from(new Set(targets));
 }
-
 function validateScope(scope) {
   if (!SCOPES.has(scope)) {
     throw new Error(`--scope must be one of: ${Array.from(SCOPES).join(", ")}`);
