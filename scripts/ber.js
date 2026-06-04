@@ -184,17 +184,18 @@ function promotionTargetsFor(lesson) {
 
   const targets = [];
   const haystack = normalize(`${lesson.category} ${lesson.scope} ${lesson.text}`);
-  if (lesson.scope === "workspace" || /(always|never|durable|remember|future runs|operating rule)/.test(haystack)) {
+  if (lesson.scope === "workspace" || /\b(always|never|durable|remember|future runs|operating rule)\b/.test(haystack)) {
     targets.push("memory");
   }
-  if (/(skill|command|workflow|human surface|clawhub)/.test(haystack)) {
+  if (/\b(skill|command|workflow|human surface|clawhub)\b/.test(haystack)) {
     targets.push("skill");
   }
-  if (/(eval|test|regression|smoke|verify|failing|failure)/.test(haystack)) {
+  if (/\b(eval|test|regression|smoke|verify|failing|failure)\b/.test(haystack)) {
     targets.push("eval");
   }
   return Array.from(new Set(targets));
 }
+
 function validateScope(scope) {
   if (!SCOPES.has(scope)) {
     throw new Error(`--scope must be one of: ${Array.from(SCOPES).join(", ")}`);
