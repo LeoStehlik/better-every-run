@@ -41,6 +41,7 @@ Usage:
   node scripts/ber.js reject <lesson-id> [--reason <text>]
   node scripts/ber.js quarantine <lesson-id> --reason <text>
   node scripts/ber.js supersede <old-lesson-id> --by <new-lesson-id> [--reason <text>]
+  node scripts/ber.js eval-fixture <lesson-id> --target <json-file> [--name <text>]
   node scripts/ber.js export-memory-patch [--all]
   node scripts/ber.js apply-memory-patch --target <markdown-file> [--all]
 
@@ -695,6 +696,55 @@ function cmdPromote(opts) {
   console.log(`# Lesson promoted\n\n- ID: ${lesson.id}\n- To: ${targetType}\n- Target: ${rel}\n${scanLines(scan)}`);
 }
 
+function evalFixtureFor(lesson, name = "") {
+  const prompt = lesson.from || lesson.text;
+  const expected = lesson.to || lesson.text;
+  return {
+    id: `ber_${lesson.id}`,
+    name: name || `BER regression: ${lesson.id}`,
+    source: "better-every-run",
+    lessonId: lesson.id,
+    category: lesson.category,
+    scope: lesson.scope || "eval",
+    evidenceIds: lesson.evidenceIds || [],
+    prompt,
+    expected,
+    shouldFailWhen: lesson.from ? lesson.from : "agent repeats the captured bad outcome",
+    shouldPassWhen: lesson.to ? lesson.to : "agent follows the accepted lesson text",
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function cmdEvalFixture(opts) {
+  const id = opts._[0];
+  const target = opts.target;
+  if (!target) throw new Error("--target is required");
+  const targetPath = path.resolve(process.cwd(), target);
+  const rel = path.relative(process.cwd(), targetPath);
+  if (rel.startsWith("..") || path.isAbsolute(rel)) {
+    throw new Error(`Target must stay inside the current project: ${target}`);
+  }
+  const lessons = readJsonl(LESSONS_FILE);
+  const lesson = findLesson(lessons, id);
+  const fixture = evalFixtureFor(lesson, opts.name || "");
+  let existing = [];
+  if (fs.existsSync(targetPath)) {
+    const raw = fs.readFileSync(targetPath, "utf8").trim();
+    if (raw) existing = JSON.parse(raw);
+    if (!Array.isArray(existing)) throw new Error("eval fixture target must contain a JSON array");
+  } else {
+    fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+  }
+  const next = existing.filter((item) => item.lessonId !== lesson.id);
+  next.push(fixture);
+  fs.writeFileSync(targetPath, `${JSON.stringify(next, null, 2)}\n`, "utf8");
+  lesson.status = lesson.status === "accepted" ? "promoted" : lesson.status;
+  lesson.evalFixture = rel;
+  lesson.evalFixtureAt = new Date().toISOString();
+  writeJsonl(LESSONS_FILE, lessons);
+  console.log(`# Eval fixture written\n\n- Lesson: ${lesson.id}\n- Target: ${rel}\n- Fixture: ${fixture.id}`);
+}
+
 function cmdApplyMemoryPatch(opts) {
   const target = opts.target;
   if (!target) {
@@ -832,6 +882,7 @@ function main() {
   if (command === "reject") return updateLessonStatus(opts._[0], "rejected", opts.reason || "");
   if (command === "quarantine") return cmdQuarantine(opts);
   if (command === "supersede") return cmdSupersede(opts);
+  if (command === "eval-fixture") return cmdEvalFixture(opts);
   if (command === "export-memory-patch") return cmdExportMemoryPatch(opts);
   if (command === "apply-memory-patch") return cmdApplyMemoryPatch(opts);
 

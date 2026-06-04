@@ -91,4 +91,12 @@ node "$ROOT/scripts/ber.js" report --today >/tmp/ber-lifecycle-report.out
 grep -q "Quarantined:" /tmp/ber-lifecycle-report.out
 grep -q "Superseded:" /tmp/ber-lifecycle-report.out
 
+
+FIXTURE_ID="$(node "$ROOT/scripts/ber.js" fix "agent claims done without proof -> agent includes verification output" --scope eval --tags regression | awk '/Lesson:/ {print $3}')"
+node "$ROOT/scripts/ber.js" eval-fixture "$FIXTURE_ID" --target evals/ber-regressions.json --name "requires verification proof" >/tmp/ber-eval-fixture.out
+grep -q "Eval fixture written" /tmp/ber-eval-fixture.out
+test -s evals/ber-regressions.json
+node -e 'const fs=require("fs"); const rows=JSON.parse(fs.readFileSync("evals/ber-regressions.json","utf8")); if(rows.length!==1) process.exit(1); if(!rows[0].prompt.includes("claims done")) process.exit(1); if(!rows[0].expected.includes("verification output")) process.exit(1);'
+grep -q '"evalFixture":"evals/ber-regressions.json"' .better-every-run/lessons.jsonl
+
 echo "smoke ok"
