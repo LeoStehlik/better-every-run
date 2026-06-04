@@ -61,14 +61,16 @@ BER is deliberately upstream of heavier machinery:
 
 See `examples/upstream-loop.md` for the end-to-end flow.
 
-## Proof Artifact
+## Credibility Artifact
 
-The repo includes a GitHub-only asciinema recording [`examples/better-every-run-v0.5.cast`](examples/better-every-run-v0.5.cast) plus the replay script [`examples/asciinema-demo.sh`](examples/asciinema-demo.sh). It walks through the governed BER flow: capture, report routing, lesson card, stale-target refusal, promotion, eval fixture generation, quarantine, supersede, and final report.
+![Animated terminal demo: Better Every Run governed correction flow](assets/better-every-run-terminal-demo.svg)
+
+The repo includes the asciinema recording [`assets/better-every-run-terminal-demo.cast`](assets/better-every-run-terminal-demo.cast), the replay script [`examples/asciinema-demo.sh`](examples/asciinema-demo.sh), and terminal notes in [`examples/terminal-demo.md`](examples/terminal-demo.md). It walks through the governed BER flow: capture, report routing, lesson card, stale-target refusal, promotion, eval fixture generation, quarantine, supersede, and final report.
 
 Replay it locally:
 
 ```bash
-asciinema play examples/better-every-run-v0.5.cast
+asciinema play assets/better-every-run-terminal-demo.cast
 ```
 
 Regenerate it from the repo script:
@@ -76,7 +78,9 @@ Regenerate it from the repo script:
 ```bash
 asciinema rec --overwrite -q -i 1.0 -t "Better Every Run v0.5" \
   -c "bash examples/asciinema-demo.sh" \
-  examples/better-every-run-v0.5.cast
+  assets/better-every-run-terminal-demo.cast
+npx --yes svg-term-cli --in assets/better-every-run-terminal-demo.cast \
+  --out assets/better-every-run-terminal-demo.svg --window --width 100 --height 32
 ```
 
 The terminal recording, demo script, and terminal notes are intentionally GitHub-only; they are excluded from the ClawHub installable package so the published skill stays lean.
@@ -86,9 +90,11 @@ The terminal recording, demo script, and terminal notes are intentionally GitHub
 ```text
 better-every-run/
 ├── SKILL.md
+├── assets/
+│   ├── better-every-run-terminal-demo.cast
+│   └── better-every-run-terminal-demo.svg
 ├── examples/
 │   ├── asciinema-demo.sh
-│   ├── better-every-run-v0.5.cast
 │   ├── demo.md
 │   ├── terminal-demo.md
 │   └── upstream-loop.md
