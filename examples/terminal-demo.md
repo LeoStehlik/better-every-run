@@ -3,7 +3,7 @@
 Record the Better Every Run terminal demo with asciinema:
 
 ```bash
-asciinema rec --overwrite -q -i 1.0 -t "Better Every Run v0.5" \
+asciinema rec --overwrite -q -i 1.0 -t "Better Every Run v0.5.5" \
   -c "bash examples/asciinema-demo.sh" \
   assets/better-every-run-terminal-demo.cast
 ```

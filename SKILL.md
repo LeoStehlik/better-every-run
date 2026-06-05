@@ -3,7 +3,7 @@ name: ber
 description: "Better Every Run: turn explicit /ber corrections into preferred future outcomes through a small fix, remember, and report flow."
 user-invocable: true
 metadata:
-  version: "0.5.4"
+  version: "0.5.5"
 ---
 # Better Every Run
 
@@ -17,7 +17,7 @@ The human path is deliberately small:
 /ber report
 ```
 
-The agent runs the bundled local helper and reports the result in chat, including whether anything was written locally or appended to a durable memory file. Lessons may carry scope, expiry, status, promotion hints, lesson cards, scanner verdicts, target hashes, quarantine/supersession metadata, and eval-fixture follow-up.
+The agent runs the bundled local helper and reports the result in chat. `fix` and `remember` record only to the local `.better-every-run/` evidence store. Durable memory/skill changes require the reviewed `card` + `promote` flow; eval regression cases require `eval-fixture`.
 
 ## When To Use
 
@@ -38,11 +38,16 @@ The agent runs the bundled local helper and reports the result in chat, includin
 
 - Report CLI output back in chat; do not build web pages or dashboards.
 - Do not silently edit `MEMORY.md`, `AGENTS.md`, `SOUL.md`, or other durable instruction files.
-- Only append to a durable memory file when the user explicitly asked for persistence or approved the target.
-- Keep corrections factual: bad outcome, desired outcome, target file if applying.
+- Do not pass `--target` to `/ber fix` or `/ber remember`; direct durable writes are disabled and must refuse.
+- Only promote to durable memory or skill files after an explicit review decision using `card` then `promote`.
+- Memory promotions must target an existing `memory/*.md` file.
+- Skill promotions must target `SKILL.md` in the current skill project.
+- Eval fixtures must use `eval-fixture` and target `.json` or `.jsonl` under `tests/` or `evals/`.
+- Scanner hard blocks and warnings both block promotion. Adjust, quarantine, or supersede the lesson instead of forcing it through.
+- Keep corrections factual: bad outcome, desired outcome, and scope.
 - Use scope metadata when it helps decide whether a lesson belongs only to this run, the project, the workspace, a skill, memory, or an eval.
 - Avoid private data unless the user explicitly wants it captured.
-- Keep the user-facing flow short, but disclose persistence: local store, durable target file if used, and how to review it.
+- Keep the user-facing flow short, but disclose persistence: local store, durable target file if promoted, and how it was reviewed.
 - Design for the shortest path to the user's outcome.
 - Never publish `.better-every-run/` state, local lessons, event logs, or private corrections.
 
@@ -64,7 +69,7 @@ Use `/ber report` to show what was learned, including open proposals and promoti
 
 ## Agent Implementation
 
-Keep low-level helper commands out of normal chat unless debugging, but never hide persistence. A normal answer should say whether the lesson was recorded only in `.better-every-run/` or appended to a named durable file.
+Keep low-level helper commands out of normal chat unless debugging, but never hide persistence. A normal answer should say whether the lesson was recorded only in `.better-every-run/` or promoted to a named durable file through a lesson card.
 
 Read `references/workflow.md` for the full workflow.
 Read `references/report-template.md` for expected chat output shape.
@@ -72,6 +77,7 @@ Read `references/report-template.md` for expected chat output shape.
 Before publishing or packaging, verify:
 - `.better-every-run/` is excluded
 - `make test` passes
+- direct `fix --target`, `remember --target`, and `apply-memory-patch` attempts refuse without changing target files
 - lesson-card, lifecycle, and eval-fixture demos are generic and contain no private workspace paths, chat IDs, tokens, or hostnames
 - examples contain no private workspace paths, chat IDs, tokens, or hostnames
 - docs say activation is explicit-only and persistence is disclosed

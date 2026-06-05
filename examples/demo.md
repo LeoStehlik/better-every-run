@@ -8,4 +8,4 @@ From any project directory:
 /ber report
 ```
 
-Expected result: the OpenClaw agent responds with the captured lesson or report and says where it was stored. Local evidence stays under `.better-every-run/`; durable memory files are changed only when explicitly targeted. When a lesson deserves durability, the agent can promote it into memory, skill behavior, or eval coverage without expanding the human-facing command surface.
+Expected result: the OpenClaw agent responds with the captured lesson or report and says where it was stored. Local evidence stays under `.better-every-run/`. Durable changes require a reviewed lesson card for memory/skill promotion, or `eval-fixture` for regression coverage, without expanding the human-facing command surface.

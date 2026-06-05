@@ -21,19 +21,19 @@ const TYPES = new Set([
 ]);
 
 const SCOPES = new Set(["run", "project", "workspace", "skill", "memory", "eval"]);
-const PROMOTION_TARGETS = new Set(["memory", "skill", "eval"]);
+const PROMOTION_TARGETS = new Set(["memory", "skill"]);
 
 function usage() {
   return `Better Every Run
 
 Usage:
   node scripts/ber.js init
-  node scripts/ber.js fix "<bad outcome> -> <desired outcome>" [--target <markdown-file>] [--tags a,b]
-  node scripts/ber.js fix --from <bad outcome> --to <desired outcome> [--target <markdown-file>] [--tags a,b]
+  node scripts/ber.js fix "<bad outcome> -> <desired outcome>" [--tags a,b]
+  node scripts/ber.js fix --from <bad outcome> --to <desired outcome> [--tags a,b]
   node scripts/ber.js capture --type <type> --note <text> [--source <text>] [--tags a,b]
-  node scripts/ber.js remember --note <text> [--type <type>] [--scope <scope>] [--expires YYYY-MM-DD|never] [--target <markdown-file>] [--tags a,b]
-  node scripts/ber.js card <lesson-id> --to <memory|skill|eval> --target <markdown-file> [--note <text>]
-  node scripts/ber.js promote <lesson-id> --to <memory|skill|eval> --target <markdown-file> [--note <text>]
+  node scripts/ber.js remember --note <text> [--type <type>] [--scope <scope>] [--expires YYYY-MM-DD|never] [--tags a,b]
+  node scripts/ber.js card <lesson-id> --to <memory|skill> --target <markdown-file> [--note <text>]
+  node scripts/ber.js promote <lesson-id> --to <memory|skill> --target <markdown-file> [--note <text>]
   node scripts/ber.js list [--today] [--limit N]
   node scripts/ber.js propose [--today] [--limit N]
   node scripts/ber.js report [--today|--week]
@@ -41,9 +41,8 @@ Usage:
   node scripts/ber.js reject <lesson-id> [--reason <text>]
   node scripts/ber.js quarantine <lesson-id> --reason <text>
   node scripts/ber.js supersede <old-lesson-id> --by <new-lesson-id> [--reason <text>]
-  node scripts/ber.js eval-fixture <lesson-id> --target <json-file> [--name <text>]
+  node scripts/ber.js eval-fixture <lesson-id> --target <tests-or-evals-json-file> [--name <text>]
   node scripts/ber.js export-memory-patch [--all]
-  node scripts/ber.js apply-memory-patch --target <markdown-file> [--all]
 
 Types:
   ${Array.from(TYPES).join(", ")}
@@ -62,7 +61,7 @@ function parseArgs(argv) {
       continue;
     }
     const key = arg.slice(2);
-    if (key === "today" || key === "week" || key === "all" || key === "force" || key === "require-card") {
+    if (key === "today" || key === "week" || key === "all") {
       out[key] = true;
       continue;
     }
@@ -238,6 +237,35 @@ function targetPathFor(target) {
   return { targetPath, rel };
 }
 
+
+function validatePromotionTarget(targetType, rel) {
+  if (targetType === "memory") {
+    if (!rel.startsWith("memory/") || !rel.endsWith(".md")) {
+      throw new Error("Memory promotions must target an existing memory/*.md file.");
+    }
+    return;
+  }
+  if (targetType === "skill") {
+    if (rel !== "SKILL.md") {
+      throw new Error("Skill promotions must target SKILL.md in the current skill project.");
+    }
+    return;
+  }
+  throw new Error("Promotion target must be memory or skill. Use eval-fixture for eval regression cases.");
+}
+
+function validateEvalTarget(rel) {
+  if (!/^(tests|evals)\//.test(rel) || !/\.(json|jsonl)$/.test(rel)) {
+    throw new Error("Eval fixtures must target tests/*.json, tests/*.jsonl, evals/*.json, or evals/*.jsonl.");
+  }
+}
+
+function rejectDirectTarget(command, target) {
+  if (target) {
+    throw new Error(`${command} no longer writes directly to --target. Record the lesson locally, then use card + promote for memory/skill or eval-fixture for evals.`);
+  }
+}
+
 function hashFile(file) {
   return crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
 }
@@ -361,6 +389,7 @@ function createLessonFromEvent(event, status = "proposed") {
 }
 
 function cmdRemember(opts) {
+  rejectDirectTarget("remember", opts.target);
   const type = opts.type || "preference";
   const note = opts.note;
   if (!TYPES.has(type)) {
@@ -368,9 +397,6 @@ function cmdRemember(opts) {
   }
   if (!note || !note.trim()) {
     throw new Error("--note is required");
-  }
-  if (opts.target && !fs.existsSync(path.resolve(process.cwd(), opts.target))) {
-    throw new Error(`Target file does not exist: ${opts.target}`);
   }
 
   const event = cmdCapture({
@@ -385,22 +411,17 @@ function cmdRemember(opts) {
   const lesson = createLessonFromEvent(event, "accepted");
   appendJsonl(LESSONS_FILE, lesson);
 
-  let applied = "";
-  if (opts.target) {
-    applyLessonsToTarget([lesson], opts.target);
-    applied = `\n- Applied to: ${opts.target}`;
-  }
-
   console.log(`# Remembered
 
 - Lesson: ${lesson.id}
 - Status: accepted
-- Text: ${lesson.text}${applied}
+- Text: ${lesson.text}
 
 Storage:
 - Local store: ${STORE_DIR}/
-${opts.target ? `- Durable file changed: ${opts.target}` : "- Durable file changed: none"}
+- Durable file changed: none
 
+Use card + promote for reviewed memory/skill changes, or eval-fixture for regression cases.
 Use this in chat as: "Better Every Run: remembered."`);
 }
 
@@ -425,10 +446,8 @@ function parseFix(opts) {
 }
 
 function cmdFix(opts) {
+  rejectDirectTarget("fix", opts.target);
   const { from, to } = parseFix(opts);
-  if (opts.target && !fs.existsSync(path.resolve(process.cwd(), opts.target))) {
-    throw new Error(`Target file does not exist: ${opts.target}`);
-  }
   const note = `When this happens: ${from}. Prefer this outcome: ${to}.`;
   const event = createEvent({
     type: "correction",
@@ -445,19 +464,15 @@ function cmdFix(opts) {
   lesson.to = to;
   appendJsonl(LESSONS_FILE, lesson);
 
-  let applied = "";
-  if (opts.target) {
-    applyLessonsToTarget([lesson], opts.target);
-    applied = `\n- Applied to: ${opts.target}`;
-  }
-
   console.log(`# Fixed
 
 - From: ${from}
 - To: ${to}
-- Lesson: ${lesson.id}${applied}
+- Lesson: ${lesson.id}
 - Local store: ${STORE_DIR}/
-${opts.target ? `- Durable file changed: ${opts.target}` : "- Durable file changed: none"}`);
+- Durable file changed: none
+
+Use card + promote for reviewed memory/skill changes, or eval-fixture for regression cases.`);
 }
 
 function cmdList(opts) {
@@ -633,6 +648,7 @@ function cmdCard(opts) {
     throw new Error(`--to must be one of: ${Array.from(PROMOTION_TARGETS).join(", ")}`);
   }
   const { targetPath, rel } = targetPathFor(opts.target);
+  validatePromotionTarget(targetType, rel);
   const lessons = readJsonl(LESSONS_FILE);
   const lesson = findLesson(lessons, id);
   const rendered = promotionBlock(lesson, targetType, opts.note || "");
@@ -659,6 +675,7 @@ function cmdPromote(opts) {
     throw new Error(`--to must be one of: ${Array.from(PROMOTION_TARGETS).join(", ")}`);
   }
   const { targetPath, rel } = targetPathFor(opts.target);
+  validatePromotionTarget(targetType, rel);
   const lessons = readJsonl(LESSONS_FILE);
   const lesson = findLesson(lessons, id);
   const rendered = promotionBlock(lesson, targetType, opts.note || "");
@@ -666,19 +683,20 @@ function cmdPromote(opts) {
   if (scan.hard.length) {
     throw new Error(`Promotion blocked by BER scanner: ${scan.hard.join(", ")}`);
   }
-  if (scan.warnings.length && !opts.force) {
-    throw new Error(`Promotion needs review: ${scan.warnings.join(", ")}. Re-run with --force after review.`);
+  if (scan.warnings.length) {
+    throw new Error(`Promotion needs review: ${scan.warnings.join(", ")}. Adjust or quarantine the lesson, then write a fresh card.`);
   }
 
   const plan = lesson.promotionPlan;
-  if (opts["require-card"] && !plan) {
+  if (!plan) {
     throw new Error("Promotion requires a lesson card. Run card first.");
   }
-  if (plan && plan.targetType === targetType && plan.target === rel) {
-    const currentHash = hashFile(targetPath);
-    if (currentHash !== plan.targetHash) {
-      throw new Error(`Target changed since lesson card was written: ${rel}. Expected ${plan.targetHash}, got ${currentHash}. Re-run card before promoting.`);
-    }
+  if (plan.targetType !== targetType || plan.target !== rel) {
+    throw new Error(`Promotion card target mismatch. Card is for ${plan.targetType}:${plan.target}; requested ${targetType}:${rel}. Re-run card before promoting.`);
+  }
+  const currentHash = hashFile(targetPath);
+  if (currentHash !== plan.targetHash) {
+    throw new Error(`Target changed since lesson card was written: ${rel}. Expected ${plan.targetHash}, got ${currentHash}. Re-run card before promoting.`);
   }
 
   const targetHashBefore = hashFile(targetPath);
@@ -724,9 +742,17 @@ function cmdEvalFixture(opts) {
   if (rel.startsWith("..") || path.isAbsolute(rel)) {
     throw new Error(`Target must stay inside the current project: ${target}`);
   }
+  validateEvalTarget(rel);
   const lessons = readJsonl(LESSONS_FILE);
   const lesson = findLesson(lessons, id);
   const fixture = evalFixtureFor(lesson, opts.name || "");
+  const scan = scanPromotion(lesson, "eval", rel, JSON.stringify(fixture));
+  if (scan.hard.length) {
+    throw new Error(`Eval fixture blocked by BER scanner: ${scan.hard.join(", ")}`);
+  }
+  if (scan.warnings.length) {
+    throw new Error(`Eval fixture needs review: ${scan.warnings.join(", ")}. Adjust or quarantine the lesson before writing an eval.`);
+  }
   let existing = [];
   if (fs.existsSync(targetPath)) {
     const raw = fs.readFileSync(targetPath, "utf8").trim();
@@ -745,48 +771,10 @@ function cmdEvalFixture(opts) {
   console.log(`# Eval fixture written\n\n- Lesson: ${lesson.id}\n- Target: ${rel}\n- Fixture: ${fixture.id}`);
 }
 
-function cmdApplyMemoryPatch(opts) {
-  const target = opts.target;
-  if (!target) {
-    throw new Error("--target is required. Example: --target memory/decisions.md");
-  }
-
-  const lessons = selectedMemoryLessons(opts);
-  if (!lessons.length) {
-    throw new Error(`No ${opts.all ? "" : "accepted "}lessons available to apply`);
-  }
-
-  applyLessonsToTarget(lessons, target);
+function cmdApplyMemoryPatch() {
+  throw new Error("apply-memory-patch is retired. Use export-memory-patch for review output, then card + promote for a single memory/skill lesson.");
 }
 
-function applyLessonsToTarget(lessons, target) {
-  if (!target) {
-    throw new Error("target is required");
-  }
-
-  const targetPath = path.resolve(process.cwd(), target);
-  if (!fs.existsSync(targetPath)) {
-    throw new Error(`Target file does not exist: ${target}`);
-  }
-
-  fs.appendFileSync(targetPath, memoryPatchBlock(lessons), "utf8");
-
-  const allLessons = readJsonl(LESSONS_FILE);
-  const appliedIds = new Set(lessons.map((lesson) => lesson.id));
-  for (const lesson of allLessons) {
-    if (!appliedIds.has(lesson.id)) continue;
-    lesson.exportedAt = new Date().toISOString();
-    lesson.exportedLocalTime = localStamp();
-    lesson.exportedTo = target;
-  }
-  writeJsonl(LESSONS_FILE, allLessons);
-
-  console.log(`# Better Every Run memory patch applied
-
-- Target: ${target}
-- Lessons appended: ${lessons.length}
-- Lesson IDs: ${lessons.map((lesson) => lesson.id).join(", ")}`);
-}
 
 function countsBy(items, field) {
   return items.reduce((acc, item) => {
@@ -823,7 +811,7 @@ function cmdReport(opts) {
 ## Storage
 
 - Local store: ${STORE_DIR}/
-- Durable files changed: ${accepted.filter((lesson) => lesson.exportedTo).map((lesson) => lesson.exportedTo).filter((value, index, arr) => arr.indexOf(value) === index).join(", ") || "none"}
+- Durable files changed: ${promoted.filter((lesson) => lesson.promotedTarget || lesson.evalFixture).map((lesson) => lesson.promotedTarget || lesson.evalFixture).filter((value, index, arr) => arr.indexOf(value) === index).join(", ") || "none"}
 
 ## Counts
 
@@ -853,7 +841,11 @@ ${openLessons.length ? openLessons.map((lesson) => `- ${lesson.id} | ${lesson.ca
 
 ${promotionSuggestions.length ? promotionSuggestions.map((lesson) => {
   const first = lesson.promotionTargets[0];
-  return `- ${lesson.id} | ${lesson.scope}/${lesson.category}: promote to ${lesson.promotionTargets.join(", ")}\n  Review: node scripts/ber.js card ${lesson.id} --to ${first} --target <markdown-file>\n  Apply: node scripts/ber.js promote ${lesson.id} --to ${first} --target <markdown-file> --require-card`;
+  if (first === "eval") {
+    return `- ${lesson.id} | ${lesson.scope}/${lesson.category}: promote to eval\n  Apply: node scripts/ber.js eval-fixture ${lesson.id} --target evals/ber-regressions.json`;
+  }
+  const targetHint = first === "memory" ? "memory/decisions.md" : "SKILL.md";
+  return `- ${lesson.id} | ${lesson.scope}/${lesson.category}: promote to ${lesson.promotionTargets.join(", ")}\n  Review: node scripts/ber.js card ${lesson.id} --to ${first} --target ${targetHint}\n  Apply: node scripts/ber.js promote ${lesson.id} --to ${first} --target ${targetHint}`;
 }).join("\n") : "- none"}
 
 ## Next action

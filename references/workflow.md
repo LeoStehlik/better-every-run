@@ -12,18 +12,12 @@ Use one command for outcome corrections:
 /ber fix agent used wrong host for code work -> agent uses the approved development host
 ```
 
-In OpenClaw chat, the human-facing prompt should be this simple:
-
-```text
-/ber fix agent used wrong host for code work -> agent uses the approved development host
-```
-
-The agent handles the helper command and reports the result, including whether data was written only to `.better-every-run/` or also to a durable memory file. Use `--scope` when the lesson has an obvious destination: `run`, `project`, `workspace`, `skill`, `memory`, or `eval`. Use `--expires YYYY-MM-DD` for temporary rules, or `--expires never` for explicit long-lived lessons.
+The agent handles the helper command and reports the result. Normal `fix` and `remember` commands write only to `.better-every-run/`. Use `--scope` when the lesson has an obvious destination: `run`, `project`, `workspace`, `skill`, `memory`, or `eval`. Use `--expires YYYY-MM-DD` for temporary rules, or `--expires never` for explicit long-lived lessons.
 
 For simple preferences:
 
 ```text
-/ber remember do GitHub/code work on the approved development host, not in the agent workspace
+/ber remember do code work on the approved development host
 ```
 
 ## Internal Capture
@@ -31,7 +25,7 @@ For simple preferences:
 Capture only evidence that would change future behavior and was explicitly requested through `/ber` or direct durable-learning instruction:
 
 ```bash
-node scripts/ber.js capture --type correction --note "Do GitHub/code work on the approved development host, not in the agent workspace." --tags workspace,coding
+node scripts/ber.js capture --type correction --note "Do code work on the approved development host." --tags workspace,coding
 ```
 
 Good captures:
@@ -66,21 +60,30 @@ Return the report in chat:
 /ber report
 ```
 
-Keep the chat report short. Include storage status and any open proposed lessons.
+Keep the chat report short. Include local storage status and any open proposed lessons.
 
-## Promote To Memory, Skill, Or Eval
+## Promote To Memory Or Skill
 
 This flow is for agents, audits, tests, and explicit durable writes. In normal chat, summarize the result instead of making the human operate helper commands, but disclose any durable target file.
 
 ```bash
 node scripts/ber.js card <lesson-id> --to memory --target memory/decisions.md
-node scripts/ber.js promote <lesson-id> --to memory --target memory/decisions.md --require-card
+node scripts/ber.js promote <lesson-id> --to memory --target memory/decisions.md
 node scripts/ber.js card <lesson-id> --to skill --target SKILL.md
-node scripts/ber.js promote <lesson-id> --to skill --target SKILL.md --require-card
+node scripts/ber.js promote <lesson-id> --to skill --target SKILL.md
+```
+
+Lesson cards record target hashes and scanner verdicts before promotion. Promotion appends a reviewable block only if the target has not changed since the card was written and the scanner verdict is clean.
+
+## Promote To Eval
+
+Eval durability uses a structured fixture command, not markdown append promotion:
+
+```bash
 node scripts/ber.js eval-fixture <lesson-id> --target tests/ber-regressions.json
 ```
 
-Lesson cards record target hashes and scanner verdicts before promotion. Promotion appends a reviewable block only if the target has not changed since the card was written. Eval fixtures write JSON regression cases for repeated failures.
+Eval fixture targets must be `.json` or `.jsonl` files under `tests/` or `evals/`.
 
 ## Lifecycle Hygiene
 
@@ -91,14 +94,13 @@ node scripts/ber.js quarantine <lesson-id> --reason "one-off"
 node scripts/ber.js supersede <old-lesson-id> --by <new-lesson-id> --reason "environment changed"
 ```
 
-## Apply Durable Memory
+## Review Export
 
-This older patch flow remains available for audits and bulk accepted-lesson exports.
+This older patch flow is review-only now:
 
 ```bash
 node scripts/ber.js accept <lesson-id>
 node scripts/ber.js export-memory-patch
-node scripts/ber.js apply-memory-patch --target memory/decisions.md
 ```
 
-Use `export-memory-patch` in chat before applying when a durable file write is risky or ambiguous. Normal `/ber fix` and `/ber remember` use should stay concise, while clearly saying where the lesson was stored.
+`apply-memory-patch` is retired and refuses. Normal `/ber fix` and `/ber remember` use should stay concise, while clearly saying the lesson is local until a reviewed promotion happens.

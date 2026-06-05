@@ -8,13 +8,17 @@ cd "$WORK"
 
 say() {
   sleep 0.8
-  printf '\n# %s\n' "$*"
+  printf '
+# %s
+' "$*"
   sleep 1.4
 }
 
 ber() {
   sleep 0.5
-  printf '\n$ ber %s\n' "$*"
+  printf '
+$ ber %s
+' "$*"
   sleep 0.8
   node "$ROOT/scripts/ber.js" "$@"
   sleep 1.1
@@ -22,7 +26,9 @@ ber() {
 
 show_fixture() {
   sleep 0.5
-  printf '\n$ node -e "print eval fixture"\n'
+  printf '
+$ node -e "print eval fixture"
+'
   sleep 0.8
   node -e 'const fs=require("fs"); const rows=JSON.parse(fs.readFileSync("evals/ber-regressions.json","utf8")); console.log(JSON.stringify(rows[0], null, 2));'
   sleep 1.1
@@ -36,45 +42,46 @@ say "Better Every Run: correction intake, not note hoarding"
 ber init
 
 say "1. Capture a human correction with the tiny /ber-shaped surface"
-ber fix \
-  "agent says done without proof -> agent shows exact verification output" \
-  --scope eval \
-  --tags proof,regression
+ber fix   "agent says done without proof -> agent shows exact verification output"   --scope eval   --tags proof,regression
 LESSON_ID="$(lesson_id "done without proof")"
 
 say "2. Report shows the lesson and where it should go"
 ber report --today
 
-say "3. Write a lesson card before touching a durable file"
-printf '# Eval target\n' > eval-target.md
-ber card "$LESSON_ID" --to eval --target eval-target.md
-
-say "4. Stale target protection: change the file after the card"
-printf 'changed after card\n' >> eval-target.md
+say "3. Direct durable writes are refused"
+printf '# Direct target
+' > direct.md
 sleep 0.5
-printf '\n$ ber promote %s --to eval --target eval-target.md --require-card\n' "$LESSON_ID"
+printf '
+$ ber fix "agent skips proof -> agent verifies" --target direct.md
+'
 sleep 0.8
-if node "$ROOT/scripts/ber.js" promote "$LESSON_ID" --to eval --target eval-target.md --require-card >/tmp/ber-stale-demo.out 2>&1; then
-  cat /tmp/ber-stale-demo.out
+if node "$ROOT/scripts/ber.js" fix "agent skips proof -> agent verifies" --target direct.md >/tmp/ber-direct-demo.out 2>&1; then
+  cat /tmp/ber-direct-demo.out
 else
-  cat /tmp/ber-stale-demo.out
+  cat /tmp/ber-direct-demo.out
 fi
 sleep 1.1
 
-say "5. Re-card and promote after review"
-ber card "$LESSON_ID" --to eval --target eval-target.md
-ber promote "$LESSON_ID" --to eval --target eval-target.md --require-card
+say "4. Memory and skill promotion require a lesson card"
+ber remember --note "Keep release notes concise." --scope memory --tags demo
+MEMORY_ID="$(lesson_id "release notes")"
+mkdir -p memory
+printf '# Decisions
+' > memory/decisions.md
+ber card "$MEMORY_ID" --to memory --target memory/decisions.md
+ber promote "$MEMORY_ID" --to memory --target memory/decisions.md
 
-say "6. Generate a regression fixture from the correction"
+say "5. Eval lessons become JSON fixtures"
 ber eval-fixture "$LESSON_ID" --target evals/ber-regressions.json --name "agent must show verification proof"
 show_fixture
 
-say "7. Quarantine one-off lessons instead of preserving bad policy"
+say "6. Quarantine one-off lessons instead of preserving bad policy"
 ber remember --note "This one-off deployment workaround should not become policy." --scope project --tags lifecycle
 QUARANTINE_ID="$(lesson_id "one-off deployment workaround")"
 ber quarantine "$QUARANTINE_ID" --reason "one-off workaround"
 
-say "8. Supersede stale lessons when a better rule appears"
+say "7. Supersede stale lessons when a better rule appears"
 ber remember --note "Use the old deploy checklist." --scope skill --tags lifecycle
 OLD_ID="$(lesson_id "old deploy checklist")"
 ber remember --note "Use the deploy checklist with verification proof." --scope skill --tags lifecycle

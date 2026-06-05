@@ -22,12 +22,18 @@ node scripts/ber.js report --today
 
 The report shows accepted lessons, expiry/status metadata, and promotion suggestions.
 
-## 3. Write a lesson card before promotion
+## 3. Write a lesson card before memory or skill promotion
 
-Lesson card:
+Memory card:
 
 ```bash
-node scripts/ber.js card <lesson-id> --to eval --target tests/ber-regressions.json
+node scripts/ber.js card <lesson-id> --to memory --target memory/decisions.md
+```
+
+Skill card:
+
+```bash
+node scripts/ber.js card <lesson-id> --to skill --target SKILL.md
 ```
 
 The card records the target hash and scanner verdict before a durable file is changed.
@@ -37,13 +43,13 @@ The card records the target hash and scanner verdict before a durable file is ch
 Memory promotion:
 
 ```bash
-node scripts/ber.js promote <lesson-id> --to memory --target memory/decisions.md --require-card
+node scripts/ber.js promote <lesson-id> --to memory --target memory/decisions.md
 ```
 
 Skill promotion:
 
 ```bash
-node scripts/ber.js promote <lesson-id> --to skill --target SKILL.md --require-card
+node scripts/ber.js promote <lesson-id> --to skill --target SKILL.md
 ```
 
 Eval promotion:
@@ -54,4 +60,4 @@ node scripts/ber.js eval-fixture <lesson-id> --target tests/ber-regressions.json
 
 ## Product Point
 
-The human still sees the small `/ber` surface. The agent gets enough structure to decide whether the correction belongs in memory, a skill, an eval fixture, quarantine, supersession, or nowhere.
+The human still sees the small `/ber` surface. The agent gets enough structure to decide whether the correction belongs in memory, a skill, an eval fixture, quarantine, supersession, or nowhere. Direct durable writes from `fix`, `remember`, and the retired patch applier are blocked.
