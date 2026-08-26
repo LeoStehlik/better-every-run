@@ -1,8 +1,26 @@
 # Better Every Run
 
-Lightweight run learning for OpenClaw agents.
+Teach the agent from explicit corrections without turning chat into permanent memory.
 
-Better Every Run turns explicit `/ber` corrections into future behavior. It does not auto-capture casual chat. The user gives a short command, and the agent reports what was recorded and where it was stored. Accepted lessons carry scope, expiry, status, promotion hints, lesson cards, scanner verdicts, target hashes, lifecycle metadata, and eval-fixture output so an agent can decide whether a correction should stay local or become memory, a skill rule, or a regression case.
+Better Every Run gives a correction a clean path: capture it locally, review whether it deserves to stick, then promote it to memory, a skill rule, or an eval only when the evidence is good. Nothing is learned from casual chat by accident.
+
+```text
+/ber fix vague status update -> exact command output and next action
+/ber remember design software for humans from the shortest path to outcome
+/ber report
+```
+
+The useful part is the boundary. The agent can improve from a sharp correction, but it still has to say what was recorded, where it lives, and whether anything durable changed.
+
+## Start Here
+
+```bash
+git clone https://github.com/LeoStehlik/better-every-run.git
+cd better-every-run
+make test
+```
+
+Then read `SKILL.md` and `examples/upstream-loop.md` to see the governed correction flow.
 
 ## Install
 
@@ -22,7 +40,7 @@ For Claude Code, Codex, or other agent harnesses, copy this folder into the harn
 
 ## Human Surface
 
-In OpenClaw chat:
+Use BER when the human explicitly wants a lesson recorded:
 
 ```text
 /ber fix vague status update -> exact command output and next action
@@ -31,6 +49,10 @@ In OpenClaw chat:
 ```
 
 The agent handles the local helper, then tells the human whether the lesson stayed in the project-local `.better-every-run/` store or was promoted through a reviewed durable flow.
+
+## Works With
+
+BER is written as an OpenClaw skill, but the pattern is portable to any agent runner that can load a `SKILL.md` file and run the bundled helper. It fits Codex, Claude Code, OpenCode, Hermes, and custom multi-agent harnesses that need explicit learning without silent memory writes.
 
 ## Product Rule
 
@@ -96,7 +118,7 @@ better-every-run/
 
 ## Status
 
-Usable public skill bundle, published on ClawHub as `better-every-run@0.5.5`. The GitHub repo also carries the terminal demo proof artifact.
+Usable public skill bundle, published on ClawHub as `better-every-run`. The GitHub repo also carries the terminal demo proof artifact.
 
 ## Verify
 
