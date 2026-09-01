@@ -12,6 +12,8 @@ Better Every Run gives a correction a clean path: capture it locally, review whe
 
 The useful part is the boundary. The agent can improve from a sharp correction, but it still has to say what was recorded, where it lives, and whether anything durable changed.
 
+**v0.6 focus:** a concrete before/after correction artifact: bad repeated agent behavior -> explicit `/ber fix` -> local lesson card -> later run improves without silently rewriting durable memory.
+
 ## Start Here
 
 ```bash
@@ -37,6 +39,14 @@ git clone https://github.com/LeoStehlik/better-every-run.git ~/.openclaw/workspa
 ```
 
 For Claude Code, Codex, or other agent harnesses, copy this folder into the harness skill directory and load `SKILL.md`.
+
+## Conversion Proof
+
+BER is easiest to understand as a before/after loop:
+
+![Before and after BER correction flow](assets/ber-before-after-correction.svg)
+
+Read the compact proof story in [`examples/before-after-correction.md`](examples/before-after-correction.md). It shows the bad behavior, the exact `/ber fix`, what gets stored locally, what does not get promoted automatically, and how the later run changes.
 
 ## Human Surface
 
@@ -97,9 +107,11 @@ See `examples/upstream-loop.md` for the end-to-end flow.
 better-every-run/
 ├── SKILL.md
 ├── assets/
+│   ├── ber-before-after-correction.svg
 │   ├── better-every-run-terminal-demo.cast
 │   └── better-every-run-terminal-demo.svg
 ├── examples/
+│   ├── before-after-correction.md
 │   ├── asciinema-demo.sh
 │   ├── demo.md
 │   ├── terminal-demo.md
