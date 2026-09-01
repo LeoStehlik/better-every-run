@@ -1,0 +1,39 @@
+{
+  "task_id": "ber-v06-before-after",
+  "phase": "build",
+  "agent": "builder",
+  "timestamp": "2026-09-01T01:05:00Z",
+  "overall": "UNKNOWN",
+  "criteria": [
+    {
+      "id": "AC1",
+      "status": "UNKNOWN",
+      "note": "Pending verification."
+    },
+    {
+      "id": "AC2",
+      "status": "UNKNOWN",
+      "note": "Pending verification."
+    },
+    {
+      "id": "AC3",
+      "status": "UNKNOWN",
+      "note": "Pending verification."
+    },
+    {
+      "id": "AC4",
+      "status": "UNKNOWN",
+      "note": "Pending verification."
+    },
+    {
+      "id": "AC5",
+      "status": "UNKNOWN",
+      "note": "Pending verification."
+    },
+    {
+      "id": "AC6",
+      "status": "UNKNOWN",
+      "note": "Pending verification."
+    }
+  ]
+}
